@@ -1,9 +1,9 @@
-import * as cbor from 'cbor';
-import { Numeric, Serialize } from 'eosjs';
+//import * as util from 'util';
+//import * as cbor from 'cbor';
+//import { Numeric, Serialize } from 'eosjs';
 import * as express from 'express';
 import * as fs from 'fs';
 import * as SocketIO from 'socket.io';
-import * as util from 'util';
 import { Key } from '../common/Key';
 
 const keysPath = 'keys.json';
@@ -11,7 +11,7 @@ const keysPath = 'keys.json';
 let unloadedModule = false;
 export const router = express.Router();
 
-const textDecoder = new util.TextDecoder();
+//const textDecoder = new util.TextDecoder();
 
 interface AddKeyArgs {
     rpid: string;
@@ -58,17 +58,18 @@ async function sendKeys() {
 
 async function addKey(k: AddKeyArgs) {
     try {
-        const decoded = await decodeKey(k);
+        var r = 9;
+        /*const decoded = await decodeKey(k);
         console.log(decoded);
         keys.push(decoded);
         fs.writeFileSync(keysPath, JSON.stringify(keys, null, 4));
-        sendKeys();
+        sendKeys();*/
     } catch (e) {
         console.log('??????', e);
         socket.emit('err', e.message);
     }
 }
-
+/*
 async function decodeKey(k: AddKeyArgs): Promise<Key> {
     // todo: check RP ID hash
     // todo: check signature
@@ -134,6 +135,7 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
         key,
     };
 }
+*/
 
 let socketIO: SocketIO.Server;
 export function start(io: SocketIO.Server) {

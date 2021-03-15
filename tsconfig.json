@@ -1,5 +1,9 @@
 {
     "compilerOptions": {
+        "typeRoots": [
+            //"node_modules",
+            "node_modules/@types"
+        ],
         "module": "es2015",
         "target": "es2017",
         "outDir": "dist",
@@ -14,6 +18,9 @@
     },
     "include": [
         "src/**/*.ts",
-        "node_modules/eosjs/**/*.d.ts"
-    ]
+        "node_modules/eosjs/**/*.d.ts",
+        "node_modules/@types", 
+        "src/client/customUtils.ts",
+        //"src/client/utils/customUtils.d.ts"    
+]
 }

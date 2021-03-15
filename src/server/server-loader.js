@@ -2,8 +2,20 @@ const express = require('express');
 const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
 
+const fs = require('fs');
+
 const app = express();
 const server = require('http').Server(app);
+
+var options = {
+    key: fs.readFileSync('./ubiworldca.pem'),
+    cert: fs.readFileSync('./ubiworldca.pem')
+  };
+
+const https = require('https');
+
+const serverhttps = https.createServer(options, app);
+
 const config = require('../../webpack.config.js');
 const compiler = webpack(config);
 
@@ -31,12 +43,12 @@ app.use(function (req, res, next) {
     getServerMain().router(req, res, next);
 })
 
-let io = require('socket.io')(server);
+let io = require('socket.io')(serverhttps);
 io.on('connection', socket => {
     getServerMain().connected(socket);
 });
 
-server.listen(8000);
+serverhttps.listen(8000);
 
 const formatHost = {
     getCanonicalFileName: path => path,

@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const { WebpackError } = require('webpack');
 
 module.exports = {
     entry: {
@@ -23,7 +24,11 @@ module.exports = {
         ]
     },
     resolve: {
-        extensions: ['.tsx', '.ts', '.js']
+        extensions: ['.tsx', '.ts', '.js'],
+        alias: {
+            util3: require.resolve("util/"),
+            utils: path.resolve(__dirname, 'src/client/utils/'),
+        }
     },
     devtool: 'inline-source-map',
     devServer: {
@@ -40,8 +45,13 @@ module.exports = {
         new webpack.NoEmitOnErrorsPlugin(),
     ],
     output: {
+        libraryExport: 'default', //Nejc's line
         filename: '[name].bundle.js',
         path: path.resolve(__dirname, 'dist'),
         publicPath: '/'
+    },
+    node: {
+        fs: "empty",
+        net: 'empty'
     }
 };
