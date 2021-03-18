@@ -3,8 +3,11 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as IoClient from 'socket.io-client';
 import { Key } from '../common/Key';
-import { WaSignatureProvider } from './wasig';
+import { Connector } from './connector';
+import {environment} from './constant';
 require('fast-text-encoding');  
+
+
  
 //'use strict'
 const cbor = require('cbor-web');
@@ -18,34 +21,38 @@ class AppState {
     public io: SocketIOClient.Socket;
     public clientRoot: ClientRoot;
     public keys = [] as Key[];
-    public sigprov = new WaSignatureProvider();
-    public rpc = new JsonRpc('http://localhost:8888');
-    public api: Api;
+    //public sigprov = new WaSignatureProvider();
+    //public rpc = new JsonRpc('http://localhost:8888');
+    //public api: Api;
     public message = '';
     public balances = new Map<string, string>();
 
+    public connector : Connector;
+
     constructor() {
-        this.api = new Api({ rpc: this.rpc, signatureProvider: this.sigprov });
+        this.connector = new Connector(environment.eosio.host);
+        /*this.api = new Api({ rpc: this.rpc, signatureProvider: this.sigprov });
         this.updateBalance('usera');
         this.updateBalance('userb');
         this.updateBalance('userc');
-        this.updateBalance('userd');
+        this.updateBalance('userd');*/
     }
 
     public restore(prev: AppState) {
+        /*
         this.message = prev.message;
-        this.setKeys(prev.keys);
+        this.setKeys(prev.keys);*/
     }
 
     public setKeys(keys: Key[]) {
-        this.keys = keys;
+        /*this.keys = keys;
         this.sigprov.keys.clear();
         for (const key of this.keys)
-            this.sigprov.keys.set(key.key, key.credentialId);
+            this.sigprov.keys.set(key.key, key.credentialId);*/
     }
 
     private async updateBalance(name: string) {
-        while (this.alive) {
+        /*while (this.alive) {
             try {
                 await delay(200);
                 this.balances.set(name, (await this.rpc.get_currency_balance('eosio.token', name))[0]);
@@ -54,7 +61,7 @@ class AppState {
             } catch (e) {
                 console.log(e);
             }
-        }
+        }*/
     }
 }
 
@@ -252,7 +259,7 @@ const textDecoder = new TextDecoder();
 }
 
 async function transfer(appState: AppState, from: string, to: string) {
-    try {
+    /*try {
         await appState.api.transact(
             {
                 actions: [{
@@ -276,7 +283,47 @@ async function transfer(appState: AppState, from: string, to: string) {
         appendMessage(appState, 'transaction pushed');
     } catch (e) {
         appendMessage(appState, e);
-    }
+    }*/
+}
+
+async function propose(appState: AppState){
+    const TEMP_FIXED_USER : string = "rowuseruser1";
+    
+    //get timestamp; minutes
+    var timestamp = new Date();
+    timestamp.setMinutes(timestamp.getMinutes()+ 5);
+    console.log(timestamp.toUTCString());
+
+    let formattedDt = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ssZZZZZ', 'en_US')
+    
+    //"2021-03-18T11:25:23",
+    var TEMP_FIXED_TRANSACTION = {
+        "expiration": timestamp.toUTCString(),
+        "ref_block_num":0,
+        "ref_block_prefix":0,
+        "max_net_usage_words":0,
+        "max_cpu_usage_ms":0,
+        "delay_sec":0,
+        "context_free_actions":false,
+        "actions":[
+            {
+                "account":"irowyourboat",
+                "name":"hi",
+                "authorization":
+                [
+                    {
+                        "actor":"rowuseruser1",
+                        "permission":"active"
+                    }
+                ],
+                "data":"10aec2fa2aac39bd"
+        }
+    ],
+    "transaction_extensions":false
+    };
+    const result = await appState.connector.propose(TEMP_FIXED_USER, TEMP_FIXED_TRANSACTION);
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
 }
 
 function Controls({ appState }: { appState: AppState }) {
@@ -287,6 +334,8 @@ function Controls({ appState }: { appState: AppState }) {
             <button onClick={() => { transfer(appState, 'userb', 'usera'); }}>userb to usera</button>
             <button onClick={() => { transfer(appState, 'userc', 'userd'); }}>userc to userd</button>
             <button onClick={() => { transfer(appState, 'userd', 'userc'); }}>userd to userc</button>
+
+            <button onClick={() => { propose(appState); }}>Propose</button>
         </div>
     );
 }
@@ -342,179 +391,4 @@ export default function init(prev: AppState) {
     connectSocket(appState);
     ReactDOM.render(<ClientRoot {...{ appState }} />, document.getElementById('main'));
     return appState;
-}
-
-
-declare module customUtils1 {
-    interface InspectOptions extends NodeJS.InspectOptions { }
-    function format(format: any, ...param: any[]): string;
-    function formatWithOptions(inspectOptions: InspectOptions, format: string, ...param: any[]): string;
-    /** @deprecated since v0.11.3 - use `console.error()` instead. */
-    function debug(string: string): void;
-    /** @deprecated since v0.11.3 - use `console.error()` instead. */
-    function error(...param: any[]): void;
-    /** @deprecated since v0.11.3 - use `console.log()` instead. */
-    function puts(...param: any[]): void;
-    /** @deprecated since v0.11.3 - use `console.log()` instead. */
-    function print(...param: any[]): void;
-    /** @deprecated since v0.11.3 - use a third party module instead. */
-    function log(string: string): void;
-    function inspect(object: any, showHidden?: boolean, depth?: number | null, color?: boolean): string;
-    function inspect(object: any, options: InspectOptions): string;
-    namespace inspect {
-        let colors: {
-            [color: string]: [number, number] | undefined
-        };
-        let styles: {
-            [style: string]: string | undefined
-        };
-        let defaultOptions: InspectOptions;
-        /**
-         * Allows changing inspect settings from the repl.
-         */
-        let replDefaults: InspectOptions;
-    }
-    /** @deprecated since v4.0.0 - use `Array.isArray()` instead. */
-    function isArray(object: any): object is any[];
-    /** @deprecated since v4.0.0 - use `util.types.isRegExp()` instead. */
-    function isRegExp(object: any): object is RegExp;
-    /** @deprecated since v4.0.0 - use `util.types.isDate()` instead. */
-    function isDate(object: any): object is Date;
-    /** @deprecated since v4.0.0 - use `util.types.isNativeError()` instead. */
-    function isError(object: any): object is Error;
-    function inherits(constructor: any, superConstructor: any): void;
-    function debuglog(key: string): (msg: string, ...param: any[]) => void;
-    /** @deprecated since v4.0.0 - use `typeof value === 'boolean'` instead. */
-    function isBoolean987(object: any): object is boolean;
-    /** @deprecated since v4.0.0 - use `Buffer.isBuffer()` instead. */
-    function isBuffer(object: any): object is Buffer;
-    /** @deprecated since v4.0.0 - use `typeof value === 'function'` instead. */
-    function isFunction(object: any): boolean;
-    /** @deprecated since v4.0.0 - use `value === null` instead. */
-    function isNull(object: any): object is null;
-    /** @deprecated since v4.0.0 - use `value === null || value === undefined` instead. */
-    function isNullOrUndefined(object: any): object is null | undefined;
-    /** @deprecated since v4.0.0 - use `typeof value === 'number'` instead. */
-    function isNumber(object: any): object is number;
-    /** @deprecated since v4.0.0 - use `value !== null && typeof value === 'object'` instead. */
-    function isObject(object: any): boolean;
-    /** @deprecated since v4.0.0 - use `(typeof value !== 'object' && typeof value !== 'function') || value === null` instead. */
-    function isPrimitive(object: any): boolean;
-    /** @deprecated since v4.0.0 - use `typeof value === 'string'` instead. */
-    function isString(object: any): object is string;
-    /** @deprecated since v4.0.0 - use `typeof value === 'symbol'` instead. */
-    function isSymbol(object: any): object is symbol;
-    /** @deprecated since v4.0.0 - use `value === undefined` instead. */
-    function isUndefined(object: any): object is undefined;
-    function deprecate<T extends Function>(fn: T, message: string): T;
-    function isDeepStrictEqual(val1: any, val2: any): boolean;
-
-    interface CustomPromisify<TCustom extends Function> extends Function {
-        __promisify__: TCustom;
-    }
-
-    function callbackify(fn: () => Promise<void>): (callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<TResult>(fn: () => Promise<TResult>): (callback: (err: NodeJS.ErrnoException, result: TResult) => void) => void;
-    function callbackify<T1>(fn: (arg1: T1) => Promise<void>): (arg1: T1, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, TResult>(fn: (arg1: T1) => Promise<TResult>): (arg1: T1, callback: (err: NodeJS.ErrnoException, result: TResult) => void) => void;
-    function callbackify<T1, T2>(fn: (arg1: T1, arg2: T2) => Promise<void>): (arg1: T1, arg2: T2, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, T2, TResult>(fn: (arg1: T1, arg2: T2) => Promise<TResult>): (arg1: T1, arg2: T2, callback: (err: NodeJS.ErrnoException | null, result: TResult) => void) => void;
-    function callbackify<T1, T2, T3>(fn: (arg1: T1, arg2: T2, arg3: T3) => Promise<void>): (arg1: T1, arg2: T2, arg3: T3, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, T2, T3, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3) => Promise<TResult>): (arg1: T1, arg2: T2, arg3: T3, callback: (err: NodeJS.ErrnoException | null, result: TResult) => void) => void;
-    function callbackify<T1, T2, T3, T4>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4) => Promise<void>): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, T2, T3, T4, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4) => Promise<TResult>): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, callback: (err: NodeJS.ErrnoException | null, result: TResult) => void) => void;
-    function callbackify<T1, T2, T3, T4, T5>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5) => Promise<void>): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, T2, T3, T4, T5, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5) => Promise<TResult>,
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, callback: (err: NodeJS.ErrnoException | null, result: TResult) => void) => void;
-    function callbackify<T1, T2, T3, T4, T5, T6>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6) => Promise<void>,
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, callback: (err: NodeJS.ErrnoException) => void) => void;
-    function callbackify<T1, T2, T3, T4, T5, T6, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6) => Promise<TResult>
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, arg6: T6, callback: (err: NodeJS.ErrnoException | null, result: TResult) => void) => void;
-
-    function promisify<TCustom extends Function>(fn: CustomPromisify<TCustom>): TCustom;
-    function promisify<TResult>(fn: (callback: (err: Error | null, result: TResult) => void) => void): () => Promise<TResult>;
-    function promisify(fn: (callback: (err?: Error) => void) => void): () => Promise<void>;
-    function promisify<T1, TResult>(fn: (arg1: T1, callback: (err: Error | null, result: TResult) => void) => void): (arg1: T1) => Promise<TResult>;
-    function promisify<T1>(fn: (arg1: T1, callback: (err?: Error) => void) => void): (arg1: T1) => Promise<void>;
-    function promisify<T1, T2, TResult>(fn: (arg1: T1, arg2: T2, callback: (err: Error | null, result: TResult) => void) => void): (arg1: T1, arg2: T2) => Promise<TResult>;
-    function promisify<T1, T2>(fn: (arg1: T1, arg2: T2, callback: (err?: Error) => void) => void): (arg1: T1, arg2: T2) => Promise<void>;
-    function promisify<T1, T2, T3, TResult>(fn: (arg1: T1, arg2: T2, arg3: T3, callback: (err: Error | null, result: TResult) => void) => void): (arg1: T1, arg2: T2, arg3: T3) => Promise<TResult>;
-    function promisify<T1, T2, T3>(fn: (arg1: T1, arg2: T2, arg3: T3, callback: (err?: Error) => void) => void): (arg1: T1, arg2: T2, arg3: T3) => Promise<void>;
-    function promisify<T1, T2, T3, T4, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, callback: (err: Error | null, result: TResult) => void) => void,
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4) => Promise<TResult>;
-    function promisify<T1, T2, T3, T4>(fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, callback: (err?: Error) => void) => void): (arg1: T1, arg2: T2, arg3: T3, arg4: T4) => Promise<void>;
-    function promisify<T1, T2, T3, T4, T5, TResult>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, callback: (err: Error | null, result: TResult) => void) => void,
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5) => Promise<TResult>;
-    function promisify<T1, T2, T3, T4, T5>(
-        fn: (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5, callback: (err?: Error) => void) => void,
-    ): (arg1: T1, arg2: T2, arg3: T3, arg4: T4, arg5: T5) => Promise<void>;
-    function promisify(fn: Function): Function;
-
-    namespace types {
-        function isAnyArrayBuffer(object: any): boolean;
-        function isArgumentsObject(object: any): object is IArguments;
-        function isArrayBuffer(object: any): object is ArrayBuffer;
-        function isAsyncFunction(object: any): boolean;
-        function isBooleanObject(object: any): object is Boolean;
-        function isBoxedPrimitive(object: any): object is (Number | Boolean | String | Symbol /* | Object(BigInt) | Object(Symbol) */);
-        function isDataView(object: any): object is DataView;
-        function isDate(object: any): object is Date;
-        function isExternal(object: any): boolean;
-        function isFloat32Array(object: any): object is Float32Array;
-        function isFloat64Array(object: any): object is Float64Array;
-        function isGeneratorFunction(object: any): boolean;
-        function isGeneratorObject(object: any): boolean;
-        function isInt8Array(object: any): object is Int8Array;
-        function isInt16Array(object: any): object is Int16Array;
-        function isInt32Array(object: any): object is Int32Array;
-        function isMap(object: any): boolean;
-        function isMapIterator(object: any): boolean;
-        function isModuleNamespaceObject(value: any): boolean;
-        function isNativeError(object: any): object is Error;
-        function isNumberObject(object: any): object is Number;
-        function isPromise(object: any): boolean;
-        function isProxy(object: any): boolean;
-        function isRegExp(object: any): object is RegExp;
-        function isSet(object: any): boolean;
-        function isSetIterator(object: any): boolean;
-        function isSharedArrayBuffer(object: any): boolean;
-        function isStringObject(object: any): boolean;
-        function isSymbolObject(object: any): boolean;
-        function isTypedArray(object: any): object is NodeJS.TypedArray;
-        function isUint8Array(object: any): object is Uint8Array;
-        function isUint8ClampedArray(object: any): object is Uint8ClampedArray;
-        function isUint16Array(object: any): object is Uint16Array;
-        function isUint32Array(object: any): object is Uint32Array;
-        function isWeakMap(object: any): boolean;
-        function isWeakSet(object: any): boolean;
-        function isWebAssemblyCompiledModule(object: any): boolean;
-    }
-
-    export class CustomTextDecoder {
-        readonly encoding: string;
-        readonly fatal: boolean;
-        readonly ignoreBOM: boolean;
-        constructor(
-          encoding?: string,
-          options?: { fatal?: boolean; ignoreBOM?: boolean }
-        );
-        decode(
-          input?: NodeJS.TypedArray | DataView | ArrayBuffer | null,
-          options?: { stream?: boolean }
-        ): string;
-    }
-
-    export class CustomTextEncoder {
-        readonly encoding: string;
-        encode(input?: string): Uint8Array;
-    }
 }
