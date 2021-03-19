@@ -5,6 +5,7 @@ import * as IoClient from 'socket.io-client';
 import { Key } from '../common/Key';
 import { Connector } from './connector';
 import {environment} from './constant';
+const moment = require('moment');
 require('fast-text-encoding');  
 
 
@@ -215,7 +216,7 @@ async function createKey(appState: AppState) {
     try {
 
         const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
+        const textDecoder = new TextDecoder();
 
         appendMessage(appState, 'Create key...');
         const rp = { id: 'ubi.world', name: 'ubi.world' };
@@ -292,13 +293,10 @@ async function propose(appState: AppState){
     //get timestamp; minutes
     var timestamp = new Date();
     timestamp.setMinutes(timestamp.getMinutes()+ 5);
-    console.log(timestamp.toUTCString());
 
-    let formattedDt = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ssZZZZZ', 'en_US')
-    
     //"2021-03-18T11:25:23",
     var TEMP_FIXED_TRANSACTION = {
-        "expiration": timestamp.toUTCString(),
+        "expiration": moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
         "ref_block_num":0,
         "ref_block_prefix":0,
         "max_net_usage_words":0,
@@ -326,6 +324,17 @@ async function propose(appState: AppState){
     appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
 }
 
+async function getTable(appState: AppState){
+    const TEMP_FIXED_USER : string = "rowuseruser1";
+
+    const result = await appState.connector.getTableRows('eosio.token', TEMP_FIXED_USER, 'accounts');
+    if (Array.isArray(result))
+        appendMessage(appState, result.toString());
+    else
+        appendMessage(appState, result);
+}
+
+
 function Controls({ appState }: { appState: AppState }) {
     return (
         <div className='control'>
@@ -336,6 +345,7 @@ function Controls({ appState }: { appState: AppState }) {
             <button onClick={() => { transfer(appState, 'userd', 'userc'); }}>userd to userc</button>
 
             <button onClick={() => { propose(appState); }}>Propose</button>
+            <button onClick={() => { getTable(appState); }}>Get table rows</button>
         </div>
     );
 }

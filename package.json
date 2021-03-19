@@ -56,6 +56,7 @@
       "eosjs": "file:external/eosjs",
       "eosjs-ecc": "^4.0.4",
       "fast-text-encoding": "^1.0.3",
+      "moment": "^2.29.1",
       "node-fetch": "^2.3.0",
       "react": "^16.8.6",
       "react-dom": "^16.8.6",
