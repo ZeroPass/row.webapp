@@ -1,10 +1,13 @@
+
 import { Api, JsonRpc, Serialize, Numeric} from 'eosjs';
+import { watch } from 'fs';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as IoClient from 'socket.io-client';
 import { Key } from '../common/Key';
 import { Connector } from './connector';
 import {environment} from './constant';
+import {Valid, WebAuthnCreateResult} from './structures';
 const moment = require('moment');
 require('fast-text-encoding');  
 
@@ -212,6 +215,96 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
 
 /////
 
+//Register device
+
+async function registerDevice(appState: AppState){
+    try{
+        //get/define the data
+        const rpId = 'ubi.world';
+        const rpName = rpId;
+        const username = 'Mo.Lestor'
+        const displayName = username + "@gmail.com";
+        const challenge = new Uint8Array([
+            0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
+            0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
+        ]);
+
+        console.log("Start webauthn process");
+        var wacr: WebAuthnCreateResult  = await registerWA(appState, rpId, rpName, username, displayName, challenge);
+
+        console.log(`WebAuthnCreateResult ${wacr.getValidation()}`);
+        if (!wacr.getValidation())
+            throw new Error('WebAuthn process throws an error: ' + wacr.isValid.desc);
+        
+        
+
+
+    } catch (e) {
+        //show in console
+        console.log(e);
+        //show on UIk
+        appendMessage(appState, e);
+    }
+}
+
+
+async function registerWA(appState: AppState, rpId:string, rpName:string, username: string, displayName: string, challenge: Uint8Array, userId: Uint8Array = new Uint8Array(16) ):
+Promise<WebAuthnCreateResult>{
+    try {
+        if(!rpId)
+            throw new Error('RegisterWA; rpId is undefined');
+        
+        if(!rpName)
+            throw new Error('RegisterWA; rpName is undefined');
+
+        if(!username)
+            throw new Error('RegisterWA; username is undefined');
+
+        if(!displayName)
+            throw new Error('RegisterWA; displayName is undefined');
+
+        const textEncoder = new TextEncoder();
+        const textDecoder = new TextDecoder();
+
+        appendMessage(appState, 'Signing wa...');
+        const rp = { id: rpId, name: rpName };
+        const cred = await (navigator as any).credentials.create({
+            publicKey: {
+                rp,
+                user: {
+                    id: userId,
+                    name: username,
+                    displayName: displayName,
+                },
+                pubKeyCredParams: [{
+                    type: 'public-key',
+                    alg: -7,
+                }],
+                timeout: 60000,
+                challenge: challenge
+                /*new Uint8Array([
+                    0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
+                    0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
+                ]).buffer*/,
+            },
+        });
+        console.log(cred);
+
+        var key: Key = await decodeKey({
+            rpid: rp.id,
+            id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
+            attestationObject: Serialize.arrayToHex(new Uint8Array(cred.response.attestationObject)),
+            clientDataJSON: Serialize.arrayToHex(new Uint8Array(cred.response.clientDataJSON)),
+        });
+        console.log(key);
+
+        return new WebAuthnCreateResult(new Valid(true, "everything is fine"),  "rawId");
+
+    } catch (e) {
+        appendMessage(appState, e);
+    }
+}
+
 async function createKey(appState: AppState) {
     try {
 
@@ -324,6 +417,46 @@ async function propose(appState: AppState){
     appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
 }
 
+async function approve(appState: AppState){
+
+    //get some id from blockchain
+    //use that id to sign transaction on webauthn protocol
+    const TEMP_FIXED_USER : string = "rowuseruser1";
+    
+    //get timestamp; minutes
+    var timestamp = new Date();
+    timestamp.setMinutes(timestamp.getMinutes()+ 5);
+
+    //"2021-03-18T11:25:23",
+    var TEMP_FIXED_TRANSACTION = {
+        "expiration": moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
+        "ref_block_num":0,
+        "ref_block_prefix":0,
+        "max_net_usage_words":0,
+        "max_cpu_usage_ms":0,
+        "delay_sec":0,
+        "context_free_actions":false,
+        "actions":[
+            {
+                "account":"irowyourboat",
+                "name":"hi",
+                "authorization":
+                [
+                    {
+                        "actor":"rowuseruser1",
+                        "permission":"active"
+                    }
+                ],
+                "data":"10aec2fa2aac39bd"
+        }
+    ],
+    "transaction_extensions":false
+    };
+    const result = await appState.connector.approve(TEMP_FIXED_USER, TEMP_FIXED_TRANSACTION);
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
+}
+
 async function getTable(appState: AppState){
     const TEMP_FIXED_USER : string = "rowuseruser1";
 
@@ -343,9 +476,12 @@ function Controls({ appState }: { appState: AppState }) {
             <button onClick={() => { transfer(appState, 'userb', 'usera'); }}>userb to usera</button>
             <button onClick={() => { transfer(appState, 'userc', 'userd'); }}>userc to userd</button>
             <button onClick={() => { transfer(appState, 'userd', 'userc'); }}>userd to userc</button>
-
+            <br/>
             <button onClick={() => { propose(appState); }}>Propose</button>
             <button onClick={() => { getTable(appState); }}>Get table rows</button>
+            <button onClick={() => { approve(appState); }}>Approve</button>
+            <br/>
+            <button onClick={() => { registerDevice(appState); }}>Register device</button>
         </div>
     );
 }
