@@ -1,18 +1,16 @@
-
 import { Api, JsonRpc, Serialize, Numeric} from 'eosjs';
 import { watch } from 'fs';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as IoClient from 'socket.io-client';
 import { Key } from '../common/Key';
-import { Connector } from './connector';
+import { Connector, Result } from './connector';
 import {environment} from './constant';
 import {Valid, WebAuthnCreateResult} from './structures';
 const moment = require('moment');
 require('fast-text-encoding');  
 
 
- 
 //'use strict'
 const cbor = require('cbor-web');
 
@@ -25,6 +23,7 @@ class AppState {
     public io: SocketIOClient.Socket;
     public clientRoot: ClientRoot;
     public keys = [] as Key[];
+    public accountID: string;
     //public sigprov = new WaSignatureProvider();
     //public rpc = new JsonRpc('http://localhost:8888');
     //public api: Api;
@@ -40,6 +39,10 @@ class AppState {
         this.updateBalance('userb');
         this.updateBalance('userc');
         this.updateBalance('userd');*/
+    }
+
+    public changeAccountID(accountID: string){
+        this.accountID = accountID;
     }
 
     public restore(prev: AppState) {
@@ -166,7 +169,6 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
     pos += credentialIdLength;
     var yew =  await (cbor as any).decodeFirst(new Uint8Array(data.buffer, pos));
     const pubKey = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, pos));
-    console.log("15345------------");
     if (Serialize.arrayToHex(credentialId) !== k.id)
         throw new Error('Credential ID does not match');
     if (pubKey.get(1) !== 2)
@@ -180,9 +182,7 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
     if (x.length !== 32 || y.length !== 32)
         throw new Error('Public key has invalid X or Y size');
         
-    console.log("1533-----------");
     const ser = new Serialize.SerialBuffer({textEncoder:  new TextEncoder(), textDecoder: new TextDecoder()});
-    console.log("153------------");
     ser.push((y[31] & 1) ? 3 : 2);
     ser.pushArray(x);
     ser.push(flagsToPresence(flags));
@@ -192,7 +192,6 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
         type: Numeric.KeyType.wa,
         data: compact,
     });
-    console.log("153-----------1");
     console.log({
         flags: ('00' + flags.toString(16)).slice(-2),
         signCount,
@@ -206,7 +205,6 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
         compact: Serialize.arrayToHex(compact),
         key,
     });
-    console.log("153-----------2");
     return {
         credentialId: Serialize.arrayToHex(credentialId),
         key,
@@ -215,14 +213,21 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
 
 /////
 
+function popUp(text:string){
+
+}
+
 //Register device
 
 async function registerDevice(appState: AppState){
     try{
+        if (!appState.accountID)
+            throw new Error('AccountID is not defined. Please fill the field "AccountID".');
+
         //get/define the data
         const rpId = 'ubi.world';
         const rpName = rpId;
-        const username = 'Mo.Lestor'
+        const username = appState.accountID; //'Mo.Lestor'
         const displayName = username + "@gmail.com";
         const challenge = new Uint8Array([
             0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
@@ -234,11 +239,15 @@ async function registerDevice(appState: AppState){
 
         console.log(`WebAuthnCreateResult ${wacr.getValidation()}`);
         if (!wacr.getValidation())
-            throw new Error('WebAuthn process throws an error: ' + wacr.isValid.desc);
-        
-        
+            throw new Error('registerDevice; WebAuthn process throws an error: ' + wacr.isValid.desc);
 
+        //send data to the blockchain
+        var result: Result = await blockchainAddKey(appState, appState.accountID, wacr.keyID, wacr.key);
+        
+        if (!result.isSucceeded)
+            throw new Error('registerDevice; Sending transaction to the server failed: ' + wacr.isValid.desc);
 
+        
     } catch (e) {
         //show in console
         console.log(e);
@@ -288,18 +297,14 @@ Promise<WebAuthnCreateResult>{
                 ]).buffer*/,
             },
         });
-        console.log(cred);
-
         var key: Key = await decodeKey({
             rpid: rp.id,
             id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
             attestationObject: Serialize.arrayToHex(new Uint8Array(cred.response.attestationObject)),
             clientDataJSON: Serialize.arrayToHex(new Uint8Array(cred.response.clientDataJSON)),
         });
-        console.log(key);
 
-        return new WebAuthnCreateResult(new Valid(true, "everything is fine"),  "rawId");
-
+        return new WebAuthnCreateResult(new Valid(true, "everything is fine"),  key.credentialId, key.key);
     } catch (e) {
         appendMessage(appState, e);
     }
@@ -332,8 +337,6 @@ async function createKey(appState: AppState) {
                 ]).buffer,
             },
         });
-        console.log(cred);
-
         decodeKey({
             rpid: rp.id,
             id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
@@ -378,6 +381,26 @@ async function transfer(appState: AppState, from: string, to: string) {
     } catch (e) {
         appendMessage(appState, e);
     }*/
+}
+
+async function blockchainAddKey(appState: AppState, accountID: string, keyID: string, key: string): Promise<Result>{
+    if (!keyID)
+        throw new Error("blockchainAddKey; 'KeyID' is not defined");
+    
+    if (!key)
+        throw new Error("blockchainAddKey; 'Key' is not defined");
+
+    var KEY_STRUCT = {
+            "key_name": accountID + Math.floor(Math.random() * 90000) + 1,
+            "key": key,
+            "wait": false,
+            "weight": 1,
+            "keyid": keyID
+    };
+    const result = await appState.connector.addKey(accountID, KEY_STRUCT);
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
+    return result;
 }
 
 async function propose(appState: AppState){
@@ -499,6 +522,9 @@ function Balances({ appState }: { appState: AppState }) {
 }
 
 class ClientRoot extends React.Component<{ appState: AppState }> {
+
+
+
     public render() {
         const { appState } = this.props;
         appState.clientRoot = this;
@@ -509,7 +535,18 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
                 </div>
                 <Controls appState={appState} />
                 <Balances appState={appState} />
-                <pre className='keys'>{'Keys:\n' + appState.keys.map(k => k.key).join('\n')}</pre>
+                
+                <pre className='keys'>
+                Account ID:
+                <input
+                    className='accountId'
+                    type="text" 
+                    value={appState.accountID}
+                    id={'accountID'}
+                    onChange={e => appState.changeAccountID(e.target.value)}
+                />
+                </pre>
+                {/*<pre className='keys'>{'Keys:\n' + appState.keys.map(k => k.key).join('\n')}</pre>*/}
                 <pre className='message'>{'Messages:\n' + appState.message}</pre>
                 <div className='disclaimer'>
                     EOSIO Labs repositories are experimental. Developers in the community are encouraged to use EOSIO Labs

@@ -31,7 +31,12 @@ body {
     align-content: start;
 }
 
+.accountId{
+    display: grid;
+}
+
 .keys {
+    margin: 5px;
     grid-area: keys;
     border: 1px solid;
 }
