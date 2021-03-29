@@ -9,6 +9,7 @@ import {environment} from './constant';
 import {Valid, WebAuthnCreateResult} from './structures';
 const moment = require('moment');
 require('fast-text-encoding');  
+const { nanoid } = require('nanoid');
 
 
 //'use strict'
@@ -23,7 +24,7 @@ class AppState {
     public io: SocketIOClient.Socket;
     public clientRoot: ClientRoot;
     public keys = [] as Key[];
-    public accountID: string;
+    public accountID: string = "rowuseruser1";
     //public sigprov = new WaSignatureProvider();
     //public rpc = new JsonRpc('http://localhost:8888');
     //public api: Api;
@@ -73,6 +74,7 @@ class AppState {
 }
 
 function appendMessage(appState: AppState, message: string) {
+    console.log('Appended message: ' + message);
     appState.message += message + '\n';
     appState.clientRoot.forceUpdate();
 }
@@ -245,11 +247,12 @@ async function registerDevice(appState: AppState){
         var result: Result = await blockchainAddKey(appState, appState.accountID, wacr.keyID, wacr.key);
         
         if (!result.isSucceeded)
-            throw new Error('registerDevice; Sending transaction to the server failed: ' + wacr.isValid.desc);
+            throw new Error('registerDevice; Sending transaction to the server failed: ' + result.desc);
 
-        
+        appendMessage(appState, "New key has been added to account " + appState.accountID + " on chain");
     } catch (e) {
         //show in console
+
         console.log(e);
         //show on UIk
         appendMessage(appState, e);
@@ -295,6 +298,58 @@ Promise<WebAuthnCreateResult>{
                     0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
                     0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
                 ]).buffer*/,
+            },
+        });
+        var key: Key = await decodeKey({
+            rpid: rp.id,
+            id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
+            attestationObject: Serialize.arrayToHex(new Uint8Array(cred.response.attestationObject)),
+            clientDataJSON: Serialize.arrayToHex(new Uint8Array(cred.response.clientDataJSON)),
+        });
+
+        return new WebAuthnCreateResult(new Valid(true, "everything is fine"),  key.credentialId, key.key);
+    } catch (e) {
+        appendMessage(appState, e);
+    }
+}
+
+
+async function proposeWA(appState: AppState, rpId:string, rpName:string, username: string, displayName: string, id: string, challenge: Uint8Array, userId: Uint8Array = new Uint8Array(16) ):
+Promise<WebAuthnCreateResult>{
+    try {
+        if(!rpId)
+            throw new Error('RegisterWA; rpId is undefined');
+        
+        if(!rpName)
+            throw new Error('RegisterWA; rpName is undefined');
+
+        if(!username)
+            throw new Error('RegisterWA; username is undefined');
+
+        if(!displayName)
+            throw new Error('RegisterWA; displayName is undefined');
+
+        const textEncoder = new TextEncoder();
+        const textDecoder = new TextDecoder();
+
+        appendMessage(appState, 'Signing wa...');
+        const rp = { id: rpId, name: rpName };
+        const cred = await (navigator as any).credentials.get({
+            publicKey: {
+                rp, //needed
+                user: {
+                    id: userId,
+                    name: username,
+                    displayName: displayName,
+                },
+                userVerification: undefined,
+                extensions: {},
+                allowCredentials: [{
+                    type: 'public-key',
+                    id: id,
+                }],
+                timeout: 60000, //needed
+                challenge: challenge //needed
             },
         });
         var key: Key = await decodeKey({
@@ -390,10 +445,11 @@ async function blockchainAddKey(appState: AppState, accountID: string, keyID: st
     if (!key)
         throw new Error("blockchainAddKey; 'Key' is not defined");
 
+    const alphabet = '.12345abcdefghijklmnopqrstuvwxyz';
     var KEY_STRUCT = {
-            "key_name": accountID + Math.floor(Math.random() * 90000) + 1,
+            "key_name": nanoid(alphabet, 12),
             "key": key,
-            "wait": false,
+            "wait_sec": 0,
             "weight": 1,
             "keyid": keyID
     };
@@ -403,44 +459,112 @@ async function blockchainAddKey(appState: AppState, accountID: string, keyID: st
     return result;
 }
 
-async function propose(appState: AppState){
-    const TEMP_FIXED_USER : string = "rowuseruser1";
-    
-    //get timestamp; minutes
-    var timestamp = new Date();
-    timestamp.setMinutes(timestamp.getMinutes()+ 5);
+async function blockchainPropose(appState: AppState, accountID: string, requested_approvals: string[], trx: {}): Promise<Result>{
+    if(!accountID)
+        throw new Error("blockchainPropose; 'AccountID' is not defined");
+    if (!requested_approvals || requested_approvals.length == 0)
+        throw new Error("blockchainPropose; 'requested_approvals' is not defined");
+    if (!trx)
+        throw new Error("blockchainPropose; 'trx' is not defined");
 
-    //"2021-03-18T11:25:23",
-    var TEMP_FIXED_TRANSACTION = {
-        "expiration": moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
-        "ref_block_num":0,
-        "ref_block_prefix":0,
-        "max_net_usage_words":0,
-        "max_cpu_usage_ms":0,
-        "delay_sec":0,
-        "context_free_actions":false,
-        "actions":[
-            {
-                "account":"irowyourboat",
-                "name":"hi",
-                "authorization":
-                [
-                    {
-                        "actor":"rowuseruser1",
-                        "permission":"active"
-                    }
-                ],
-                "data":"10aec2fa2aac39bd"
-        }
-    ],
-    "transaction_extensions":false
-    };
-    const result = await appState.connector.propose(TEMP_FIXED_USER, TEMP_FIXED_TRANSACTION);
+    //randomly generated name    
+    const alphabet = '.12345abcdefghijklmnopqrstuvwxyz';
+    const proposalName = "rtyuikjhgty2";//nanoid(alphabet, 12);
+
+    const result = await appState.connector.propose(accountID, proposalName, requested_approvals, trx);
     const isSucceeded = String(result.isSucceeded);
     appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
+    return result;
+}
+
+function createKeyArray(receivedKeys:any[]): Array<string>{
+    var keyArray: string[] = new Array<string>();
+    
+    for (var item of receivedKeys){
+        keyArray.push(item.key_name);
+    }
+    return keyArray;
+}
+
+async function propose(appState: AppState){
+    try{
+        if (!appState.accountID)
+            throw new Error('AccountID is not defined. Please fill the field "AccountID".');
+
+        //get/define the data
+        const rpId = 'ubi.world';
+        const rpName = rpId;
+        const username = appState.accountID; //'Mo.Lestor'
+        const displayName = username + "@gmail.com";
+        const challenge = new Uint8Array([
+            0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
+            0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
+        ]);
+        const id = '';
+
+        //get timestamp; minutes
+        var timestamp = new Date();
+        timestamp.setMinutes(timestamp.getMinutes()+ 5);
+
+        //"2021-03-18T11:25:23",
+        var TEMP_FIXED_TRANSACTION = {
+            "expiration": moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
+            "ref_block_num":0,
+            "ref_block_prefix":0,
+            "max_net_usage_words":0,
+            "max_cpu_usage_ms":0,
+            "delay_sec":0,
+            "context_free_actions":false,
+            "actions":[
+                {
+                    "account":"irowyourboat",
+                    "name":"hi",
+                    "authorization":
+                    [
+                        {
+                            "actor":"rowuseruser1",
+                            "permission":"active"
+                        }
+                    ],
+                    "data":"10aec2fa2aac39bd"
+            }
+        ],
+        "transaction_extensions":false
+        };
+
+        console.log("Getting data from the chain");
+        //code, scope, table
+        var keys = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID, "authorities");
+        const isSucceeded = String(keys.isSucceeded);
+        if (!keys.isSucceeded)
+            throw new Error("Getting data from the chain failed with error: " + keys.desc);
+        
+        console.log(keys.desc.length);
+
+        var keyArray = createKeyArray(keys.desc.keys);
+        if (keyArray.length == 0)
+            throw new Error('No keys on chain under current account. Please add key and then make new process');
+
+        //send data to the blockchain
+        var result: Result = await blockchainPropose(appState, appState.accountID, keyArray, TEMP_FIXED_TRANSACTION);
+        
+        if (!result.isSucceeded)
+            throw new Error('Propose; Sending transaction to the server failed: ' + result.desc);
+
+        appendMessage(appState, "New proposal with account " + appState.accountID + " has been added on chain");
+    } catch (e) {
+        //show in console
+        console.log(e);
+        //show on UIk
+        appendMessage(appState, e);
+    }
 }
 
 async function approve(appState: AppState){
+    /*
+        TODO: create approve flow
+    */
+
 
     //get some id from blockchain
     //use that id to sign transaction on webauthn protocol
@@ -487,7 +611,7 @@ async function getTable(appState: AppState){
     if (Array.isArray(result))
         appendMessage(appState, result.toString());
     else
-        appendMessage(appState, result);
+        appendMessage(appState, result.desc);
 }
 
 
