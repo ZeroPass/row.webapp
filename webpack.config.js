@@ -32,6 +32,8 @@ module.exports = {
     },
     devtool: 'inline-source-map',
     devServer: {
+        hot: false,
+        inline: false,
         contentBase: './dist'
     },
     mode: 'development',

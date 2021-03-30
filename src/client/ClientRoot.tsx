@@ -6,9 +6,8 @@ import * as IoClient from 'socket.io-client';
 import { Key } from '../common/Key';
 import { Connector, Result } from './connector';
 import {environment} from './constant';
-import {Valid, WebAuthnCreateResult} from './structures';
+import {Valid, WebAuthnCreateResult, WebAuthnApproveResult} from './structures';
 const moment = require('moment');
-require('fast-text-encoding');  
 const { nanoid } = require('nanoid');
 
 
@@ -19,7 +18,7 @@ require('./style.css');
 
 const socketUrl = 'https://ubi.world:8000';
 
-class AppState {
+class AppState {    
     public alive = true;
     public io: SocketIOClient.Socket;
     public clientRoot: ClientRoot;
@@ -30,16 +29,10 @@ class AppState {
     //public api: Api;
     public message = '';
     public balances = new Map<string, string>();
-
     public connector : Connector;
 
-    constructor() {
+    constructor() { 
         this.connector = new Connector(environment.eosio.host);
-        /*this.api = new Api({ rpc: this.rpc, signatureProvider: this.sigprov });
-        this.updateBalance('usera');
-        this.updateBalance('userb');
-        this.updateBalance('userc');
-        this.updateBalance('userd');*/
     }
 
     public changeAccountID(accountID: string){
@@ -130,17 +123,6 @@ function flagsToPresence(flags: number) {
         return UserPresence.present;
     else
         return UserPresence.none;
-}
-
-async function decodeKey1(k: AddKeyArgs): Promise<Key> {
-// todo: check RP ID hash
-    // todo: check signature
-    let unloadedModule = false;
-    if (unloadedModule)
-        return;
-    //console.log(k);
-    // console.log(JSON.stringify(JSON.parse(textDecoder.decode(Serialize.hexToUint8Array(k.clientDataJSON))), null, 4));
-    //const att = await cbor.decodeFirst(Serialize.hexToUint8Array(k.attestationObject));
 }
 
 
@@ -314,25 +296,31 @@ Promise<WebAuthnCreateResult>{
 }
 
 
-async function proposeWA(appState: AppState, rpId:string, rpName:string, username: string, displayName: string, id: string, challenge: Uint8Array, userId: Uint8Array = new Uint8Array(16) ):
-Promise<WebAuthnCreateResult>{
+async function approveWA(appState: AppState, rpId:string, rpName:string, username: string, displayName: string, credentialID: string, challengeArrayToSign: Uint8Array, userId: Uint8Array = new Uint8Array(16) ):
+Promise<WebAuthnApproveResult>{
     try {
         if(!rpId)
-            throw new Error('RegisterWA; rpId is undefined');
+            throw new Error('ApproveWA; rpId is undefined');
         
         if(!rpName)
-            throw new Error('RegisterWA; rpName is undefined');
+            throw new Error('ApproveWA; rpName is undefined');
 
         if(!username)
-            throw new Error('RegisterWA; username is undefined');
+            throw new Error('ApproveWA; username is undefined');
 
         if(!displayName)
-            throw new Error('RegisterWA; displayName is undefined');
+            throw new Error('ApproveWA; displayName is undefined');
+            
+        if(!credentialID)
+            throw new Error('ApproveWA; credentialID is undefined');
+            
+        if(!challengeArrayToSign)
+            throw new Error('ApproveWA; challengeArrayToSign is undefined');
 
         const textEncoder = new TextEncoder();
         const textDecoder = new TextDecoder();
 
-        appendMessage(appState, 'Signing wa...');
+        appendMessage(appState, 'Getting wa...');
         const rp = { id: rpId, name: rpName };
         const cred = await (navigator as any).credentials.get({
             publicKey: {
@@ -346,10 +334,10 @@ Promise<WebAuthnCreateResult>{
                 extensions: {},
                 allowCredentials: [{
                     type: 'public-key',
-                    id: id,
+                    id: credentialID,
                 }],
                 timeout: 60000, //needed
-                challenge: challenge //needed
+                challenge: challengeArrayToSign //needed
             },
         });
         var key: Key = await decodeKey({
@@ -359,7 +347,7 @@ Promise<WebAuthnCreateResult>{
             clientDataJSON: Serialize.arrayToHex(new Uint8Array(cred.response.clientDataJSON)),
         });
 
-        return new WebAuthnCreateResult(new Valid(true, "everything is fine"),  key.credentialId, key.key);
+        return new WebAuthnApproveResult(new Valid(true, "everything is fine"),  "signedData");
     } catch (e) {
         appendMessage(appState, e);
     }
@@ -447,7 +435,7 @@ async function blockchainAddKey(appState: AppState, accountID: string, keyID: st
 
     const alphabet = '.12345abcdefghijklmnopqrstuvwxyz';
     var KEY_STRUCT = {
-            "key_name": nanoid(alphabet, 12),
+            "key_name": nanoid(12, alphabet),
             "key": key,
             "wait_sec": 0,
             "weight": 1,
@@ -469,17 +457,20 @@ async function blockchainPropose(appState: AppState, accountID: string, requeste
 
     //randomly generated name    
     const alphabet = '.12345abcdefghijklmnopqrstuvwxyz';
-    const proposalName = "rtyuikjhgty2";//nanoid(alphabet, 12);
+    const proposalName = nanoid(12, alphabet);
 
     const result = await appState.connector.propose(accountID, proposalName, requested_approvals, trx);
     const isSucceeded = String(result.isSucceeded);
     appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
     return result;
+
 }
 
 function createKeyArray(receivedKeys:any[]): Array<string>{
+    if (receivedKeys.length == 0)
+            throw new Error("No keys under current account. Please add key to your account to use current action: ");
+
     var keyArray: string[] = new Array<string>();
-    
     for (var item of receivedKeys){
         keyArray.push(item.key_name);
     }
@@ -533,14 +524,12 @@ async function propose(appState: AppState){
         };
 
         console.log("Getting data from the chain");
-        //code, scope, table
+
         var keys = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID, "authorities");
-        const isSucceeded = String(keys.isSucceeded);
+  
         if (!keys.isSucceeded)
             throw new Error("Getting data from the chain failed with error: " + keys.desc);
         
-        console.log(keys.desc.length);
-
         var keyArray = createKeyArray(keys.desc.keys);
         if (keyArray.length == 0)
             throw new Error('No keys on chain under current account. Please add key and then make new process');
@@ -555,53 +544,51 @@ async function propose(appState: AppState){
     } catch (e) {
         //show in console
         console.log(e);
-        //show on UIk
+        //show on UI
         appendMessage(appState, e);
     }
 }
 
-async function approve(appState: AppState){
-    /*
-        TODO: create approve flow
-    */
+function getLastProposal(proposals:any[]): string{
+    if (proposals.length == 0)
+        throw new Error("No proposals under current account. Please add proposal first to your account to use current action.");
+    return proposals[proposals.length - 1].proposal_name;
+}
+ 
 
+async function approve(appState: AppState): Promise<void>{
 
-    //get some id from blockchain
-    //use that id to sign transaction on webauthn protocol
-    const TEMP_FIXED_USER : string = "rowuseruser1";
+    if (!appState.accountID)
+        throw new Error('AccountID is not defined. Please fill the field "AccountID".');
+
+    console.log("Getting data from the chain");    
+    var proposals = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID, "proposals");
     
-    //get timestamp; minutes
-    var timestamp = new Date();
-    timestamp.setMinutes(timestamp.getMinutes()+ 5);
+    if (!proposals.isSucceeded)
+            throw new Error("Getting data from the chain failed with error: " + proposals.desc);
+        
 
-    //"2021-03-18T11:25:23",
-    var TEMP_FIXED_TRANSACTION = {
-        "expiration": moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
-        "ref_block_num":0,
-        "ref_block_prefix":0,
-        "max_net_usage_words":0,
-        "max_cpu_usage_ms":0,
-        "delay_sec":0,
-        "context_free_actions":false,
-        "actions":[
-            {
-                "account":"irowyourboat",
-                "name":"hi",
-                "authorization":
-                [
-                    {
-                        "actor":"rowuseruser1",
-                        "permission":"active"
-                    }
-                ],
-                "data":"10aec2fa2aac39bd"
-        }
-    ],
-    "transaction_extensions":false
-    };
-    const result = await appState.connector.approve(TEMP_FIXED_USER, TEMP_FIXED_TRANSACTION);
+    const lastProposal = getLastProposal(proposals.desc.keys);
+
+
+    //get/define the data
+    const rpId = 'ubi.world';
+    const rpName = rpId;
+    const username = appState.accountID; //'Mo.Lestor'
+    const displayName = username + "@gmail.com";
+    const credentialID = "";
+    const challenge = new Uint8Array([
+        0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
+        0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
+    ]);
+
+    console.log("Start webauthn process");
+    var waar: WebAuthnApproveResult  = await approveWA(appState, rpId, rpName, username, displayName, credentialID, challenge);
+
+    const result = await appState.connector.approve(appState.accountID, lastProposal, "key_name", "signaturefromwaar");
     const isSucceeded = String(result.isSucceeded);
     appendMessage(appState, `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`);
+
 }
 
 async function getTable(appState: AppState){
@@ -673,14 +660,10 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
                 {/*<pre className='keys'>{'Keys:\n' + appState.keys.map(k => k.key).join('\n')}</pre>*/}
                 <pre className='message'>{'Messages:\n' + appState.message}</pre>
                 <div className='disclaimer'>
-                    EOSIO Labs repositories are experimental. Developers in the community are encouraged to use EOSIO Labs
-                    repositories as the basis for code and concepts to incorporate into their applications. Community members
-                    are also welcome to contribute and further develop these repositories. Since these repositories are not
-                    supported by Block.one, we may not provide responses to issue reports, pull requests, updates to
-                    functionality, or other requests from the community, and we encourage the community to take responsibility
-                    for these.
-                    <br /><br />
-                    <a href='https://github.com/EOSIO/webauthn-browser-signature'>GitHub Repo</a>
+                    { 
+                    /*<br /><br />
+                    <a href='https://github.com/EOSIO/webauthn-browser-signature'>GitHub Repo</a>*/
+                    }
                 </div>
             </div>
         );
