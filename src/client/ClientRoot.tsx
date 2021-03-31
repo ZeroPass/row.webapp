@@ -594,24 +594,25 @@ async function blockchainPropose(
 }
 
 function createKeyArray(receivedKeys: any[]): Array<string> {
-  if (receivedKeys.length == 0)
+  if (receivedKeys[0].length == 0)
     throw new Error(
       "No keys under current account. Please add key to your account to use current action: "
     );
 
   var keyArray: string[] = new Array<string>();
-  for (var item of receivedKeys) {
+  for (var item of receivedKeys[0].keys) {
     keyArray.push(item.key_name);
   }
   return keyArray;
 }
 
 function getLastKey(receivedKeys: any[]): string {
-    if (receivedKeys.length == 0)
+    if (receivedKeys[0].length == 0)
       throw new Error(
         "No keys under current account. Please add key to your account to use current action: "
       );
-    return receivedKeys[receivedKeys.length -1].key_name;
+    var lastElement = receivedKeys[0].keys.length - 1;
+    return receivedKeys[0].keys[lastElement].key_name;
   }
 
 async function propose(appState: AppState) {
@@ -704,7 +705,7 @@ async function propose(appState: AppState) {
         "Getting data from the chain failed with error: " + keys.desc
       );
 
-    var keyArray = createKeyArray(keys.desc.keys);
+    var keyArray = createKeyArray(keys.desc);
     if (keyArray.length == 0)
       throw new Error(
         "No keys on chain under current account. Please add key and then make new process"
