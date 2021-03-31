@@ -48,7 +48,7 @@ io.on('connection', socket => {
     getServerMain().connected(socket);
 });
 
-serverhttps.listen(8000);
+serverhttps.listen(8001);
 
 const formatHost = {
     getCanonicalFileName: path => path,

@@ -29,6 +29,9 @@ class AppState {
   public clientRoot: ClientRoot;
   public keys = [] as Key[];
   public accountID: string = "";
+  public keyName: string = "";
+  public proposalName: string = "";
+
   //public sigprov = new WaSignatureProvider();
   //public rpc = new JsonRpc('http://localhost:8888');
   //public api: Api;
@@ -42,6 +45,14 @@ class AppState {
 
   public changeAccountID(accountID: string) {
     this.accountID = accountID;
+  }
+
+  public setKeyName(keyName: string) {
+    this.keyName = keyName;
+  }
+
+  public setProposalName(prososalName: string) {
+    this.proposalName = prososalName;
   }
 
   public restore(prev: AppState) {
@@ -210,6 +221,11 @@ async function registerDevice(appState: AppState) {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
+    else if(appState.keyName.length == 0) {
+      throw new Error(
+        'Key name is not defined. Please fill the field "Key Name".'
+      );
+    }
 
     //get/define the data
     const rpId = window.location.hostname;
@@ -271,6 +287,7 @@ async function registerDevice(appState: AppState) {
     var result: Result = await blockchainAddKey(
       appState,
       appState.accountID,
+      appState.keyName,
       wacr.keyID,
       wacr.key
     );
@@ -622,19 +639,23 @@ async function transfer(appState: AppState, from: string, to: string) {
 async function blockchainAddKey(
   appState: AppState,
   accountID: string,
+  keyName: string,
   keyID: string,
-  key: string
+  pubKey: string,
+  weight: number = 1,
+  wait_sec: number = 0
 ): Promise<Result> {
+  if (!keyName) throw new Error("blockchainAddKey; 'keyName' is not defined");
   if (!keyID) throw new Error("blockchainAddKey; 'KeyID' is not defined");
+  if (!pubKey) throw new Error("blockchainAddKey; 'Key' is not defined");
+  if (weight < 1) throw new Error("blockchainAddKey; 'Key' invalid key weight");
+  if (wait_sec < 0) throw new Error("blockchainAddKey; 'Key' invalid key wait_sec");
 
-  if (!key) throw new Error("blockchainAddKey; 'Key' is not defined");
-
-  const alphabet = ".12345abcdefghijklmnopqrstuvwxyz";
   var KEY_STRUCT = {
-    key_name: nanoid(12, alphabet),
-    key: key,
-    wait_sec: 0,
-    weight: 1,
+    key_name: keyName,
+    key: pubKey,
+    wait_sec: wait_sec,
+    weight: weight,
     keyid: keyID,
   };
   const result = await appState.connector.addKey(accountID, KEY_STRUCT);
@@ -657,14 +678,11 @@ async function blockchainPropose(
   if (!requested_approvals || requested_approvals.length == 0)
     throw new Error("blockchainPropose; 'requested_approvals' is not defined");
   if (!trx) throw new Error("blockchainPropose; 'trx' is not defined");
-
-  //randomly generated name
-  const alphabet = ".12345abcdefghijklmnopqrstuvwxyz";
-  const proposalName = nanoid(12, alphabet);
+  if (!appState.proposalName) throw new Error("blockchainPropose; 'proposalName' is not defined");
 
   const result = await appState.connector.propose(
     accountID,
-    proposalName,
+    appState.proposalName,
     requested_approvals,
     trx
   );
@@ -716,51 +734,19 @@ function getLastKey(receivedKeys: any[]): any { // returns pair of key_name, key
 
 async function propose(appState: AppState) {
   try {
-    if (!appState.accountID)
+    if (!appState.accountID) {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
+    }
+    if (!appState.proposalName) {
+      throw new Error(
+        'prososalName is not defined. Please fill the field "Proposal Name".'
+      );
+    }
 
-    //get/define the data
-    const rpId = window.location.hostname;
-    const rpName = rpId;
+
     const username = appState.accountID; //'Mo.Lestor'
-    const displayName = username + "@gmail.com";
-    const challenge = new Uint8Array([
-      0x8c,
-      0x0a,
-      0x26,
-      0xff,
-      0x22,
-      0x91,
-      0xc1,
-      0xe9,
-      0xb9,
-      0x4e,
-      0x2e,
-      0x17,
-      0x1a,
-      0x98,
-      0x6a,
-      0x73,
-      0x71,
-      0x9d,
-      0x43,
-      0x48,
-      0xd5,
-      0xa7,
-      0x6a,
-      0x15,
-      0x7e,
-      0x38,
-      0x94,
-      0x52,
-      0x77,
-      0x97,
-      0x0f,
-      0xef,
-    ]);
-    const id = "";
 
     //get timestamp; minutes
     var timestamp = new Date();
@@ -853,105 +839,191 @@ function getLastProposal(proposals: any[]): ProposalStruct {
   return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
 }
 
+function getProposalTx(proposals: any[]): ProposalStruct {
+  if (proposals.length == 0)
+    throw new Error(
+      "No proposals under current account. Please add proposal first to your account to use current action."
+    );
+
+  var last = proposals.length - 1;
+  var proposal_name = proposals[last].proposal_name;
+  var data = proposals[last].packed_transaction;
+
+  console.log("Last proposal; proposal name:" + proposal_name + ", data: " + data);
+  return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
+}
+
 async function approve(appState: AppState): Promise<void> {
-  if (!appState.accountID)
-    throw new Error(
-      'AccountID is not defined. Please fill the field "AccountID".'
+  try {
+    if (!appState.accountID)
+      throw new Error(
+        'AccountID is not defined. Please fill the field "AccountID".'
+      );
+    else if (!appState.proposalName || appState.proposalName.length == 0) {
+      throw new Error(
+        'proposalName is not defined. Please fill the field "Proposal".'
+      );
+    }
+    else if (!appState.keyName || appState.keyName.length == 0) {
+      throw new Error(
+        'keyName is not defined. Please fill the field "Key Name".'
+      );
+    }
+
+    console.log("Getting data from the chain");
+    const proposal = await appState.connector.getProposal(appState.accountID, appState.proposalName);
+    const authKey  = await appState.connector.getAuthKey(appState.accountID, appState.keyName);
+    // var proposals = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID,"proposals");
+
+    // if (!proposals.isSucceeded)
+    //   throw new Error("Getting data from the chain failed with error: " + proposals.desc);
+
+      //For PoC we will use last added proposal
+
+
+
+    //const lastProposal: ProposalStruct = getLastProposal(proposals.desc);
+
+
+    ///
+    // var keys = await appState.connector.getTableRows(
+    //   environment.eosio.contract,
+    //   appState.accountID,
+    //   "authorities"
+    // );
+
+    // if (!keys.isSucceeded)
+    //   throw new Error(
+    //     "Getting data from the chain failed with error: " + keys.desc
+    //   );
+
+    //   //For PoC we will use last added key
+    // var lastKey = getLastKey(keys.desc[0].keys);
+
+
+    //get/define the data
+    const rpId = window.location.hostname;
+    const rpName = rpId;
+    const username = appState.accountID; //'Mo.Lestor'
+    const displayName = username + "@gmail.com";
+    //const credentialID = lastKey.keyid;
+
+
+
+
+
+    // const challenge = /*lastProposal.data;*/new Uint8Array([
+    //   0x8c,
+    //   0x0a,
+    //   0x26,
+    //   0xff,
+    //   0x22,
+    //   0x91,
+    //   0xc1,
+    //   0xe9,
+    //   0xb9,
+    //   0x4e,
+    //   0x2e,
+    //   0x17,
+    //   0x1a,
+    //   0x98,
+    //   0x6a,
+    //   0x73,
+    //   0x71,
+    //   0x9d,
+    //   0x43,
+    //   0x48,
+    //   0xd5,
+    //   0xa7,
+    //   0x6a,
+    //   0x15,
+    //   0x7e,
+    //   0x38,
+    //   0x94,
+    //   0x52,
+    //   0x77,
+    //   0x97,
+    //   0x0f,
+    //   0xef,
+    // ]);
+
+    console.log("Start webauthn process");
+    var waresult: WebAuthnApproveResult = await approveWA(
+      appState,
+      rpId,
+      rpName,
+      username,
+      displayName,
+      authKey,
+      Serialize.hexToUint8Array(proposal.packed_transaction)
     );
 
-  console.log("Getting data from the chain");
-  var proposals = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID,"proposals");
-
-  if (!proposals.isSucceeded)
-    throw new Error("Getting data from the chain failed with error: " + proposals.desc);
-
-    //For PoC we will use last added proposal
-  const lastProposal: ProposalStruct = getLastProposal(proposals.desc);
-
-  ///
-  var keys = await appState.connector.getTableRows(
-    environment.eosio.contract,
-    appState.accountID,
-    "authorities"
-  );
-
-  if (!keys.isSucceeded)
-    throw new Error(
-      "Getting data from the chain failed with error: " + keys.desc
+    const result = await appState.connector.approve(
+      appState.accountID,
+      appState.proposalName,
+      authKey.key_name,
+      waresult.signature
     );
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(
+      appState,
+      `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
+    );
+  }
+  catch(e) {
+    //show in console
 
-    //For PoC we will use last added key
-  var lastKey = getLastKey(keys.desc[0].keys);
+    console.log(e);
+    //show on UIk
+    appendMessage(appState, e);
+  }
+}
 
+async function exec(appState: AppState): Promise<void> {
+  try {
+    if (!appState.accountID)
+      throw new Error(
+        'AccountID is not defined. Please fill the field "AccountID".'
+      );
+    else if (!appState.proposalName || appState.proposalName.length == 0) {
+      throw new Error(
+        'proposalName is not defined. Please fill the field "Proposal".'
+      );
+    }
 
-  //get/define the data
-  const rpId = window.location.hostname;
-  const rpName = rpId;
-  const username = appState.accountID; //'Mo.Lestor'
-  const displayName = username + "@gmail.com";
-  //const credentialID = lastKey.keyid;
+    const result = await appState.connector.api.transact(
+    {
+        actions: [{
+            account: environment.eosio.contract,
+            name: 'exec',
+            data: {
+                account: appState.accountID,
+                proposal_name: appState.proposalName,
+            },
+            authorization: [{
+                actor: appState.accountID,
+                permission: 'active', //'wamsig'
+            }],
+        }],
+    }, {
+        blocksBehind: 3,
+        expireSeconds: 30,
+    });
+    console.log(result);
+    //return new Result(true, result.transaction_id);
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(
+      appState,
+      `Is transaction succeeded: true, description: ${result.transaction_id}`
+    );
+  }
+  catch(e) {
+    //show in console
 
-
-
-
-
-  // const challenge = /*lastProposal.data;*/new Uint8Array([
-  //   0x8c,
-  //   0x0a,
-  //   0x26,
-  //   0xff,
-  //   0x22,
-  //   0x91,
-  //   0xc1,
-  //   0xe9,
-  //   0xb9,
-  //   0x4e,
-  //   0x2e,
-  //   0x17,
-  //   0x1a,
-  //   0x98,
-  //   0x6a,
-  //   0x73,
-  //   0x71,
-  //   0x9d,
-  //   0x43,
-  //   0x48,
-  //   0xd5,
-  //   0xa7,
-  //   0x6a,
-  //   0x15,
-  //   0x7e,
-  //   0x38,
-  //   0x94,
-  //   0x52,
-  //   0x77,
-  //   0x97,
-  //   0x0f,
-  //   0xef,
-  // ]);
-
-  console.log("Start webauthn process");
-  var waresult: WebAuthnApproveResult = await approveWA(
-    appState,
-    rpId,
-    rpName,
-    username,
-    displayName,
-    lastKey,
-    lastProposal.data
-  );
-
-  const result = await appState.connector.approve(
-    appState.accountID,
-    lastProposal.proposal_name,
-    lastKey.key_name,
-    waresult.signature
-  );
-  const isSucceeded = String(result.isSucceeded);
-  appendMessage(
-    appState,
-    `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
-  );
+    console.log(e);
+    //show on UIk
+    appendMessage(appState, e);
+  }
 }
 
 async function getTable(appState: AppState) {
@@ -1026,6 +1098,13 @@ function Controls({ appState }: { appState: AppState }) {
       >
         Approve
       </button>
+      <button
+        onClick={() => {
+          exec(appState);
+        }}
+      >
+        Execute
+      </button>
       <br />
       <button
         onClick={() => {
@@ -1078,6 +1157,23 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
             //value={appState.accountID}
             id={"accountID"}
             onChange={(e) => appState.changeAccountID(e.target.value)}
+          />
+          Key Name:
+          <input
+            className="keyName"
+            type="text"
+            //value={appState.accountID}
+            id={"keyName"}
+            onChange={(e) => appState.setKeyName(e.target.value)}
+          />
+          <br></br>
+          Proposal:
+          <input
+            className="prososalName"
+            type="text"
+            //value={appState.accountID}
+            id={"prososalName"}
+            onChange={(e) => appState.setProposalName(e.target.value)}
           />
         </pre>
         {/*<pre className='keys'>{'Keys:\n' + appState.keys.map(k => k.key).join('\n')}</pre>*/}
