@@ -1,4 +1,5 @@
 import { Api, JsonRpc, Serialize, Numeric } from "eosjs";
+import { ec } from 'elliptic';
 import { watch } from "fs";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
@@ -20,14 +21,14 @@ const cbor = require("cbor-web");
 
 require("./style.css");
 
-const socketUrl = "https://ubi.world:8000";
+const socketUrl = "https://ubi.world:8001";
 
 class AppState {
   public alive = true;
   public io: SocketIOClient.Socket;
   public clientRoot: ClientRoot;
   public keys = [] as Key[];
-  public accountID: string = "rowuseruser1";
+  public accountID: string = "";
   //public sigprov = new WaSignatureProvider();
   //public rpc = new JsonRpc('http://localhost:8888');
   //public api: Api;
@@ -137,23 +138,23 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
   );
   //console.log(att);
   //console.log(Serialize.arrayToHex(new Uint8Array(att.authData.buffer)));
-  const data = new DataView(att.authData.buffer);
-  let pos = 30; // skip unknown
+  const data = new DataView(att.authData.buffer, att.authData.byteOffset, att.authData.length);
+  let pos = 0;//30; // skip unknown
   pos += 32; // RP ID hash
   const flags = data.getUint8(pos++);
   const signCount = data.getUint32(pos);
   pos += 4;
   if (!(flags & AttestationFlags.attestedCredentialPresent))
     throw new Error("attestedCredentialPresent flag not set");
-  const aaguid = Serialize.arrayToHex(new Uint8Array(data.buffer, pos, 16));
+  const aaguid = Serialize.arrayToHex(new Uint8Array(data.buffer, data.byteOffset + pos, 16));
   pos += 16;
   const credentialIdLength = data.getUint16(pos);
   pos += 2;
-  const credentialId = new Uint8Array(data.buffer, pos, credentialIdLength);
+  const credentialId = new Uint8Array(data.buffer, data.byteOffset + pos, credentialIdLength);
   pos += credentialIdLength;
-  var yew = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, pos));
+  var yew = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, data.byteOffset + pos));
   const pubKey = await (cbor as any).decodeFirst(
-    new Uint8Array(data.buffer, pos)
+    new Uint8Array(data.buffer, data.byteOffset + pos)
   );
   if (Serialize.arrayToHex(credentialId) !== k.id)
     throw new Error("Credential ID does not match");
@@ -211,7 +212,7 @@ async function registerDevice(appState: AppState) {
       );
 
     //get/define the data
-    const rpId = "ubi.world";
+    const rpId = window.location.hostname;
     const rpName = rpId;
     const username = appState.accountID; //'Mo.Lestor'
     const displayName = username + "@gmail.com";
@@ -365,8 +366,8 @@ async function approveWA(
   rpName: string,
   username: string,
   displayName: string,
-  credentialID: string,
-  challengeArrayToSign: Uint8Array,
+  key: any,
+  packedTransaction: Uint8Array,
   userId: Uint8Array = new Uint8Array(16)
 ): Promise<WebAuthnApproveResult> {
   try {
@@ -378,50 +379,131 @@ async function approveWA(
 
     if (!displayName) throw new Error("ApproveWA; displayName is undefined");
 
-    if (!credentialID) throw new Error("ApproveWA; credentialID is undefined");
+    if (!key) throw new Error("ApproveWA; key is undefined");
 
-    if (!challengeArrayToSign)
-      throw new Error("ApproveWA; challengeArrayToSign is undefined");
+    if (!packedTransaction)
+      throw new Error("ApproveWA; packedTransaction is undefined");
 
     const textEncoder = new TextEncoder();
     const textDecoder = new TextDecoder();
 
     appendMessage(appState, "Getting wa...");
-    const rp = { id: rpId, name: rpName };
-    const cred = await (navigator as any).credentials.get({
-      publicKey: {
-        rp, //needed
-        user: {
-          id: userId,
-          name: username,
-          displayName: displayName,
+
+    const signBuf = new Serialize.SerialBuffer();
+    //signBuf.pushArray(Serialize.hexToUint8Array(chainId));
+    signBuf.pushArray(packedTransaction);
+    // if (serializedContextFreeData) {
+    //     signBuf.pushArray(new Uint8Array(await crypto.subtle.digest('SHA-256', serializedContextFreeData.buffer)));
+    // } else {
+    //     signBuf.pushArray(new Uint8Array(32));
+    // }
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', signBuf.asUint8Array().slice().buffer));
+
+    const signatures = [] as string[];
+
+    const id = Serialize.hexToUint8Array(key.keyid);
+    const assertion = await (navigator as any).credentials.get({
+        publicKey: {
+            timeout: 60000,
+            allowCredentials: [{
+                id,
+                type: 'public-key',
+            }],
+            challenge: digest.buffer,
         },
-        userVerification: undefined,
-        extensions: {},
-        allowCredentials: [
-          {
-            type: "public-key",
-            id: credentialID,
-          },
-        ],
-        timeout: 60000, //needed
-        challenge: challengeArrayToSign, //needed
-      },
     });
-    var key: Key = await decodeKey({
-      rpid: rp.id,
-      id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
-      attestationObject: Serialize.arrayToHex(
-        new Uint8Array(cred.response.attestationObject)
-      ),
-      clientDataJSON: Serialize.arrayToHex(
-        new Uint8Array(cred.response.clientDataJSON)
-      ),
+    const e = new ec('p256') as any;
+    const pubKey = e.keyFromPublic(Numeric.stringToPublicKey(key.key).data.subarray(0, 33)).getPublic();
+
+    const fixup = (x: Uint8Array) => {
+        const a = Array.from(x);
+        while (a.length < 32) {
+            a.unshift(0);
+        }
+        while (a.length > 32) {
+            if (a.shift() !== 0) {
+                throw new Error('Signature has an r or s that is too big');
+            }
+        }
+        return new Uint8Array(a);
+    };
+
+    const der = new Serialize.SerialBuffer({ array: new Uint8Array(assertion.response.signature) });
+    if (der.get() !== 0x30) {
+        throw new Error('Signature missing DER prefix');
+    }
+    if (der.get() !== der.array.length - 2) {
+        throw new Error('Signature has bad length');
+    }
+    if (der.get() !== 0x02) {
+        throw new Error('Signature has bad r marker');
+    }
+    const r = fixup(der.getUint8Array(der.get()));
+    if (der.get() !== 0x02) {
+        throw new Error('Signature has bad s marker');
+    }
+    const s = fixup(der.getUint8Array(der.get()));
+
+    const whatItReallySigned = new Serialize.SerialBuffer();
+    whatItReallySigned.pushArray(new Uint8Array(assertion.response.authenticatorData));
+    whatItReallySigned.pushArray(new Uint8Array(
+        await crypto.subtle.digest('SHA-256', assertion.response.clientDataJSON)));
+    const hash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', whatItReallySigned.asUint8Array().slice()));
+    const recid = e.getKeyRecoveryParam(hash, new Uint8Array(assertion.response.signature), pubKey);
+
+    const sigData = new Serialize.SerialBuffer();
+    sigData.push(recid + 27 + 4);
+    sigData.pushArray(r);
+    sigData.pushArray(s);
+    sigData.pushBytes(new Uint8Array(assertion.response.authenticatorData));
+    sigData.pushBytes(new Uint8Array(assertion.response.clientDataJSON));
+
+    const sig = Numeric.signatureToString({
+        type: Numeric.KeyType.wa,
+        data: sigData.asUint8Array().slice(),
     });
+    signatures.push(sig);
+
+    //return { signatures, serializedTransaction, serializedContextFreeData };
+
+
+
+    // const rp = { id: rpId, name: rpName };
+    // const cred = await (navigator as any).credentials.get({
+    //   publicKey: {
+    //     rp, //needed
+    //     user: {
+    //       id: userId,
+    //       name: username,
+    //       displayName: displayName,
+    //     },
+    //     userVerification: undefined,
+    //     extensions: {},
+    //     allowCredentials: [
+    //       {
+    //         type: "public-key",
+    //         id: Serialize.hexToUint8Array(credentialID),
+    //       },
+    //     ],
+    //     timeout: 60000, //needed
+    //     challenge: dataToSign, //needed
+    //   },
+    // });
+    // var key: Key = await decodeKey({
+    //   rpid: rp.id,
+    //   id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
+    //   attestationObject: Serialize.arrayToHex(
+    //     new Uint8Array(cred.response.attestationObject)
+    //   ),
+    //   clientDataJSON: Serialize.arrayToHex(
+    //     new Uint8Array(cred.response.clientDataJSON)
+    //   ),
+    // });
 
     return new WebAuthnApproveResult(
       new Valid(true, "everything is fine"),
-      "signedData"
+      sig
     );
   } catch (e) {
     appendMessage(appState, e);
@@ -434,7 +516,7 @@ async function createKey(appState: AppState) {
     const textDecoder = new TextDecoder();
 
     appendMessage(appState, "Create key...");
-    const rp = { id: "ubi.world", name: "ubi.world" };
+    const rp = { id: window.location.hostname, name: window.location.hostname };
     const cred = await (navigator as any).credentials.create({
       publicKey: {
         rp,
@@ -449,6 +531,7 @@ async function createKey(appState: AppState) {
             alg: -7,
           },
         ],
+        attestation: "direct",
         timeout: 60000,
         challenge: new Uint8Array([
           0x8c,
@@ -594,26 +677,42 @@ async function blockchainPropose(
 }
 
 function createKeyArray(receivedKeys: any[]): Array<string> {
-  if (receivedKeys[0].length == 0)
+  if (receivedKeys.length == 0)
     throw new Error(
       "No keys under current account. Please add key to your account to use current action: "
     );
 
   var keyArray: string[] = new Array<string>();
-  for (var item of receivedKeys[0].keys) {
+  for (var item of receivedKeys) {
     keyArray.push(item.key_name);
   }
   return keyArray;
 }
 
-function getLastKey(receivedKeys: any[]): string {
-    if (receivedKeys[0].length == 0)
-      throw new Error(
-        "No keys under current account. Please add key to your account to use current action: "
-      );
-    var lastElement = receivedKeys[0].keys.length - 1;
-    return receivedKeys[0].keys[lastElement].key_name;
-  }
+function getLastKey(receivedKeys: any[]): any { // returns pair of key_name, key credentialID
+  if (receivedKeys.length == 0)
+    throw new Error(
+      "No keys under current account. Please add key to your account to use current action: "
+    );
+  return receivedKeys[receivedKeys.length -1];
+}
+
+// async function getPackedProposalTx(appState: AppState, account: string, proposalName: string): Uint8Array {
+//   var proposal = await appState.connector.getTableRows(
+//     environment.eosio.contract,
+//     account,
+//     "proposals",
+//     proposalName,
+//     proposalName
+//   );
+
+//   if (!proposal.isSucceeded) {
+//     throw new Error(
+//       "Getting packed proposal transaction from the chain failed with error: " + proposal.desc
+//     );
+//   }
+//   return proposal.desc.packed_transaction as Uint8Array;
+// }
 
 async function propose(appState: AppState) {
   try {
@@ -623,7 +722,7 @@ async function propose(appState: AppState) {
       );
 
     //get/define the data
-    const rpId = "ubi.world";
+    const rpId = window.location.hostname;
     const rpName = rpId;
     const username = appState.accountID; //'Mo.Lestor'
     const displayName = username + "@gmail.com";
@@ -682,7 +781,7 @@ async function propose(appState: AppState) {
           name: "hi",
           authorization: [
             {
-              actor: "rowuseruser1",
+              actor: username,
               permission: "active",
             },
           ],
@@ -705,7 +804,7 @@ async function propose(appState: AppState) {
         "Getting data from the chain failed with error: " + keys.desc
       );
 
-    var keyArray = createKeyArray(keys.desc);
+    var keyArray = createKeyArray(keys.desc[0].keys);
     if (keyArray.length == 0)
       throw new Error(
         "No keys on chain under current account. Please add key and then make new process"
@@ -749,9 +848,9 @@ function getLastProposal(proposals: any[]): ProposalStruct {
   var last = proposals.length - 1;
   var proposal_name = proposals[last].proposal_name;
   var data = proposals[last].packed_transaction;
-    
+
   console.log("Last proposal; proposal name:" + proposal_name + ", data: " + data);
-  return new ProposalStruct(proposal_name, data);
+  return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
 }
 
 async function approve(appState: AppState): Promise<void> {
@@ -782,66 +881,71 @@ async function approve(appState: AppState): Promise<void> {
     );
 
     //For PoC we will use last added key
-  var lastKey = getLastKey(keys.desc);
+  var lastKey = getLastKey(keys.desc[0].keys);
 
 
   //get/define the data
-  const rpId = "ubi.world";
+  const rpId = window.location.hostname;
   const rpName = rpId;
   const username = appState.accountID; //'Mo.Lestor'
   const displayName = username + "@gmail.com";
-  const credentialID = "";
-  const challenge = /*lastProposal.data;*/new Uint8Array([
-    0x8c,
-    0x0a,
-    0x26,
-    0xff,
-    0x22,
-    0x91,
-    0xc1,
-    0xe9,
-    0xb9,
-    0x4e,
-    0x2e,
-    0x17,
-    0x1a,
-    0x98,
-    0x6a,
-    0x73,
-    0x71,
-    0x9d,
-    0x43,
-    0x48,
-    0xd5,
-    0xa7,
-    0x6a,
-    0x15,
-    0x7e,
-    0x38,
-    0x94,
-    0x52,
-    0x77,
-    0x97,
-    0x0f,
-    0xef,
-  ]);
+  //const credentialID = lastKey.keyid;
+
+
+
+
+
+  // const challenge = /*lastProposal.data;*/new Uint8Array([
+  //   0x8c,
+  //   0x0a,
+  //   0x26,
+  //   0xff,
+  //   0x22,
+  //   0x91,
+  //   0xc1,
+  //   0xe9,
+  //   0xb9,
+  //   0x4e,
+  //   0x2e,
+  //   0x17,
+  //   0x1a,
+  //   0x98,
+  //   0x6a,
+  //   0x73,
+  //   0x71,
+  //   0x9d,
+  //   0x43,
+  //   0x48,
+  //   0xd5,
+  //   0xa7,
+  //   0x6a,
+  //   0x15,
+  //   0x7e,
+  //   0x38,
+  //   0x94,
+  //   0x52,
+  //   0x77,
+  //   0x97,
+  //   0x0f,
+  //   0xef,
+  // ]);
 
   console.log("Start webauthn process");
-  var waar: WebAuthnApproveResult = await approveWA(
+  var waresult: WebAuthnApproveResult = await approveWA(
     appState,
     rpId,
     rpName,
     username,
     displayName,
-    credentialID,
-    challenge
+    lastKey,
+    lastProposal.data
   );
 
   const result = await appState.connector.approve(
     appState.accountID,
     lastProposal.proposal_name,
-    lastKey,
-    "signaturefromwaar"
+    lastKey.key_name,
+    waresult.signature
   );
   const isSucceeded = String(result.isSucceeded);
   appendMessage(
@@ -851,7 +955,7 @@ async function approve(appState: AppState): Promise<void> {
 }
 
 async function getTable(appState: AppState) {
-  const TEMP_FIXED_USER: string = "rowuseruser1";
+  const TEMP_FIXED_USER: string = appState.accountID;
 
   const result = await appState.connector.getTableRows(
     "eosio.token",
@@ -971,7 +1075,7 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
           <input
             className="accountId"
             type="text"
-            value={appState.accountID}
+            //value={appState.accountID}
             id={"accountID"}
             onChange={(e) => appState.changeAccountID(e.target.value)}
           />
