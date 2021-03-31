@@ -10,7 +10,8 @@ import {
   Valid,
   WebAuthnCreateResult,
   WebAuthnApproveResult,
-  ProposalStruct
+  ProposalStruct,
+  KeyPair
 } from "./structures";
 const moment = require("moment");
 const { nanoid } = require("nanoid");
@@ -137,23 +138,23 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
   );
   //console.log(att);
   //console.log(Serialize.arrayToHex(new Uint8Array(att.authData.buffer)));
-  const data = new DataView(att.authData.buffer);
-  let pos = 30; // skip unknown
+  const data = new DataView(att.authData.buffer, att.authData.byteOffset, att.authData.length);
+  let pos = 0;//30; // skip unknown
   pos += 32; // RP ID hash
   const flags = data.getUint8(pos++);
   const signCount = data.getUint32(pos);
   pos += 4;
   if (!(flags & AttestationFlags.attestedCredentialPresent))
     throw new Error("attestedCredentialPresent flag not set");
-  const aaguid = Serialize.arrayToHex(new Uint8Array(data.buffer, pos, 16));
+  const aaguid = Serialize.arrayToHex(new Uint8Array(data.buffer, data.byteOffset + pos, 16));
   pos += 16;
   const credentialIdLength = data.getUint16(pos);
   pos += 2;
-  const credentialId = new Uint8Array(data.buffer, pos, credentialIdLength);
+  const credentialId = new Uint8Array(data.buffer, data.byteOffset + pos, credentialIdLength);
   pos += credentialIdLength;
-  var yew = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, pos));
+  var yew = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, data.byteOffset + pos));
   const pubKey = await (cbor as any).decodeFirst(
-    new Uint8Array(data.buffer, pos)
+    new Uint8Array(data.buffer, data.byteOffset + pos)
   );
   if (Serialize.arrayToHex(credentialId) !== k.id)
     throw new Error("Credential ID does not match");
@@ -388,14 +389,59 @@ async function approveWA(
 
     appendMessage(appState, "Getting wa...");
     const rp = { id: rpId, name: rpName };
-    const cred = await (navigator as any).credentials.get({
+
+    var options = {
+      challenge: challengeArrayToSign, // new Uint8Array([/* bytes sent from the server */]),
+      rpId: rpId, //"example.com", /* will only work if the current domain is something like foo.example.com */
+      userVerification: "preferred",
+      timeout: 60000,     // Wait for a minute
+      allowCredentials: [
+        {
+          type: "public-key",
+            id: credentialID,
+        },
+      ],
+      extensions: {
+        uvm: true,  // RP wants to know how the user was verified
+        loc: false,
+        txAuthSimple: "Could you please verify yourself?"
+      }
+    };
+
+    var options2 = {
+      challenge: new Uint8Array([/* bytes sent from the server */]),
+      rpId: "example.com", /* will only work if the current domain
+                             is something like foo.example.com */
+      userVerification: "preferred",
+      timeout: 60000,     // Wait for a minute
+      allowCredentials: [
+        {
+          transports: "usb",
+          type: "public-key",
+          id: new Uint8Array(26) // actually provided by the server
+        },
+        {
+          transports: "internal",
+          type: "public-key",
+          id: new Uint8Array(26) // actually provided by the server
+        }
+      ],
+      extensions: {
+        uvm: true,  // RP wants to know how the user was verified
+        loc: false,
+        txAuthSimple: "Could you please verify yourself?"
+      }
+    };
+
+    const cred = await (navigator as any).credentials.get(options2
+      /*{
       publicKey: {
         rp, //needed
-        user: {
-          id: userId,
-          name: username,
-          displayName: displayName,
-        },
+        //user: {
+        //  id: userId,
+        //  name: username,
+        //  displayName: displayName,
+        //},
         userVerification: undefined,
         extensions: {},
         allowCredentials: [
@@ -407,7 +453,13 @@ async function approveWA(
         timeout: 60000, //needed
         challenge: challengeArrayToSign, //needed
       },
-    });
+    }*/);
+
+    console.log(cred);
+    var kva = 8;
+    var ret = cred;
+
+
     var key: Key = await decodeKey({
       rpid: rp.id,
       id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
@@ -606,13 +658,14 @@ function createKeyArray(receivedKeys: any[]): Array<string> {
   return keyArray;
 }
 
-function getLastKey(receivedKeys: any[]): string {
+function getLastKey(receivedKeys: any[]): KeyPair {
     if (receivedKeys[0].length == 0)
       throw new Error(
         "No keys under current account. Please add key to your account to use current action: "
       );
     var lastElement = receivedKeys[0].keys.length - 1;
-    return receivedKeys[0].keys[lastElement].key_name;
+    var element = receivedKeys[0].keys[lastElement];
+    return new KeyPair(element.key_name, element.key, element.wait_sec, element.weight, element.keyid);
   }
 
 async function propose(appState: AppState) {
@@ -782,7 +835,7 @@ async function approve(appState: AppState): Promise<void> {
     );
 
     //For PoC we will use last added key
-  var lastKey = getLastKey(keys.desc);
+  var lastKey: KeyPair = getLastKey(keys.desc);
 
 
   //get/define the data
@@ -790,7 +843,7 @@ async function approve(appState: AppState): Promise<void> {
   const rpName = rpId;
   const username = appState.accountID; //'Mo.Lestor'
   const displayName = username + "@gmail.com";
-  const credentialID = "";
+  const credentialID = lastKey.keyid;
   const challenge = /*lastProposal.data;*/new Uint8Array([
     0x8c,
     0x0a,
@@ -840,7 +893,7 @@ async function approve(appState: AppState): Promise<void> {
   const result = await appState.connector.approve(
     appState.accountID,
     lastProposal.proposal_name,
-    lastKey,
+    lastKey.key_name,
     "signaturefromwaar"
   );
   const isSucceeded = String(result.isSucceeded);
