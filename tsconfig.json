@@ -2,11 +2,12 @@
     "compilerOptions": {
         "typeRoots": [
             //"node_modules",
-            "node_modules/@types"
+            "node_modules/@types",
         ],
         "module": "es2015",
         "target": "es2017",
         "outDir": "dist",
+        "allowJs": true,
         "sourceMap": true,
         "noImplicitAny": true,
         "noUnusedLocals": false,
@@ -17,6 +18,7 @@
         }
     },
     "include": [
+        "src/**/*",
         "src/**/*.ts",
         "node_modules/eosjs/**/*.d.ts",
         "node_modules/@types", 

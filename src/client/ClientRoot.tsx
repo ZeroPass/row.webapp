@@ -7,6 +7,10 @@ import * as IoClient from "socket.io-client";
 import { Key } from "../common/Key";
 import { Connector, Result } from "./connector";
 import { environment } from "./constant";
+import * as Tabs from "./component/Tabs";
+import * as Tab from "./component/Tab";
+import DefaultScreen from "./screen/defaultScreen";
+
 import {
   Valid,
   WebAuthnCreateResult,
@@ -19,12 +23,13 @@ const { nanoid } = require("nanoid");
 
 //'use strict'
 const cbor = require("cbor-web");
-
 require("./style.css");
+require("./app.css");
+
 
 const socketUrl = "https://ubi.world:8000";
 
-class AppState {
+export class AppState {
   public alive = true;
   public io: SocketIOClient.Socket;
   public clientRoot: ClientRoot;
@@ -215,7 +220,7 @@ function popUp(text: string) {}
 
 //Register device
 
-async function registerDevice(appState: AppState) {
+export async function registerDevice(appState: AppState) {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -578,7 +583,7 @@ function getLastKey(receivedKeys: any[]): KeyPair {
   }
 
 
-async function propose(appState: AppState) {
+export async function propose(appState: AppState) {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -697,7 +702,7 @@ function getProposalTx(proposals: any[]): ProposalStruct {
   return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
 }
 
-async function approve(appState: AppState): Promise<void> {
+export async function approve(appState: AppState): Promise<void> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -823,7 +828,7 @@ async function approve(appState: AppState): Promise<void> {
   }
 }
 
-async function exec(appState: AppState): Promise<void> {
+export async function exec(appState: AppState): Promise<void> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -925,48 +930,16 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
     const { appState } = this.props;
     appState.clientRoot = this;
     return (
-      <div className="client-root">
-        <div className="banner">
-          Example application demonstrating WebAuthn based account creation and
-          transactions on private blockchains
-        </div>
-        <Controls appState={appState} />
 
-        <pre className="keys">
-          Account ID:
-          <input
-            className="accountId"
-            type="text"
-            //value={appState.accountID}
-            id={"accountID"}
-            onChange={(e) => appState.changeAccountID(e.target.value)}
-          />
-          <br></br>
-          Key Name:
-          <input
-            className="keyName"
-            type="text"
-            //value={appState.accountID}
-            id={"keyName"}
-            onChange={(e) => appState.setKeyName(e.target.value)}
-          />
-          <br></br>
-          Proposal:
-          <input
-            className="proposalName"
-            type="text"
-            //value={appState.accountID}
-            id={"proposalName"}
-            onChange={(e) => appState.setProposalName(e.target.value)}
-          />
-        </pre>
-        {/*<pre className='keys'>{'Keys:\n' + appState.keys.map(k => k.key).join('\n')}</pre>*/}
-        <pre className="message">{"Messages:\n" + appState.message}</pre>
-        <div className="disclaimer">
-          {/*<br /><br />
-                    <a href='https://github.com/EOSIO/webauthn-browser-signature'>GitHub Repo</a>*/}
-        </div>
-      </div>
+        <Tabs.default>
+        <Tab.default label="Default">
+          <DefaultScreen appState={appState}/>
+
+        </Tab.default>
+        <Tab.default label="Advanced">
+          After 'while, <em>Crocodile</em>!
+        </Tab.default>
+      </Tabs.default>
     );
   }
 }
