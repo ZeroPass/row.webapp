@@ -11,6 +11,7 @@
         "sourceMap": true,
         "noImplicitAny": true,
         "noUnusedLocals": false,
+        "moduleResolution": "node",
         "jsx": "react",
         "baseUrl": ".",
         "paths": {
@@ -20,6 +21,7 @@
     "include": [
         "src/**/*",
         "src/**/*.ts",
+        "src/fonts/*",
         "node_modules/eosjs/**/*.d.ts",
         "node_modules/@types", 
         "src/client/customUtils.ts",

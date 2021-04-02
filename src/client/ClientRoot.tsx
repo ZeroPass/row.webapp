@@ -10,6 +10,7 @@ import { environment } from "./constant";
 import * as Tabs from "./component/Tabs";
 import * as Tab from "./component/Tab";
 import DefaultScreen from "./screen/defaultScreen";
+import AdvancedScreen from "./screen/advancedScreen";
 
 import {
   Valid,
@@ -932,12 +933,12 @@ class ClientRoot extends React.Component<{ appState: AppState }> {
     return (
 
         <Tabs.default>
-        <Tab.default label="Default">
+        <Tab.default label="Home">
           <DefaultScreen appState={appState}/>
 
         </Tab.default>
         <Tab.default label="Advanced">
-          After 'while, <em>Crocodile</em>!
+          <AdvancedScreen appState={appState}/>
         </Tab.default>
       </Tabs.default>
     );

@@ -15,3 +15,42 @@
     border: solid #ccc;
     border-width: 1px 1px 0 1px;
   }
+
+.container {
+    display: block;
+    background-color: wheat;
+}
+
+.item11 {
+    display: inline-block;
+    background-color:lightgoldenrodyellow;
+    width: 300px;
+    height: 300px;
+}
+
+.item12 {
+  display: inline-block;
+  background-color: bisque;
+  width: 300px;
+  height: 300px;
+}
+.item21 {
+  display: inline;
+  background-color: grey;
+}
+.item22 {
+  display: inline-block;
+  background-color: lightblue;
+}
+
+#item-1 {
+    background-color: red;
+}
+
+#item-2 {
+    background-color: blue;
+}
+
+#item-3 {
+    background-color: green;
+}
