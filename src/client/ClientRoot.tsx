@@ -37,10 +37,8 @@ export class AppState {
   public keys = [] as Key[];
   public accountID: string = "";
   public keyName: string = "";
-  public proposalName: string = "";
-  //public sigprov = new WaSignatureProvider();
-  //public rpc = new JsonRpc('http://localhost:8888');
-  //public api: Api;
+  //public proposalName: string = ""; //proposal will be the same as accountID
+
   public message = "";
   public balances = new Map<string, string>();
   public connector: Connector;
@@ -55,14 +53,14 @@ export class AppState {
   }
 
   public getURLparams(){
-    var ui = new URLSearchParams(document.location.search).entries();
+    // find if there is url parameter (in our case: key = value) <url>?accountID
     var params = new URLSearchParams(document.location.search);
+    if (params.keys())
+
+    //if any value set it as account
     for(var key of params.keys()) {
-      console.log(key);
+      this.paramAccount  = key;
     }
-    var account: string  = new URLSearchParams(document.location.search).get("acc");
-    if (account != null && account.length > 0)
-      this.paramAccount  = account;
   }
 
   public changeAccountID(accountID: string) {
@@ -371,11 +369,7 @@ async function registerWA(
           },
         ],
         timeout: 60000,
-        challenge: challenge,
-        /*new Uint8Array([
-                    0x8C, 0x0A, 0x26, 0xFF, 0x22, 0x91, 0xC1, 0xE9, 0xB9, 0x4E, 0x2E, 0x17, 0x1A, 0x98, 0x6A, 0x73,
-                    0x71, 0x9D, 0x43, 0x48, 0xD5, 0xA7, 0x6A, 0x15, 0x7E, 0x38, 0x94, 0x52, 0x77, 0x97, 0x0F, 0xEF,
-                ]).buffer*/
+        challenge: challenge
       },
     });
     var key: Key = await decodeKey({
@@ -559,12 +553,12 @@ async function blockchainPropose(
   if (!requested_approvals || requested_approvals.length == 0)
     throw new Error("blockchainPropose; 'requested_approvals' is not defined");
   if (!trx) throw new Error("blockchainPropose; 'trx' is not defined");
-  if (!appState.proposalName) 
-  throw new Error("blockchainPropose; 'proposalName' is not defined");
+  //if (!appState.proposalName) 
+  //throw new Error("blockchainPropose; 'proposalName' is not defined");
 
   const result = await appState.connector.propose(
     accountID,
-    appState.proposalName,
+    accountID,
     requested_approvals,
     trx
   );
@@ -606,11 +600,11 @@ export async function propose(appState: AppState) {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
-    if (!appState.proposalName) {
-      throw new Error(
-        'prososalName is not defined. Please fill the field "Proposal Name".'
-      );
-    }
+    //if (!appState.proposalName) {
+    //  throw new Error(
+    //    'prososalName is not defined. Please fill the field "Proposal Name".'
+    //  );
+    //}
 
     const username = appState.accountID; //'Mo.Lestor'
 
@@ -725,11 +719,11 @@ export async function approve(appState: AppState): Promise<void> {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
-    else if (!appState.proposalName || appState.proposalName.length == 0) {
-      throw new Error(
-        'proposalName is not defined. Please fill the field "Proposal".'
-      );
-    }
+    //else if (!appState.proposalName || appState.proposalName.length == 0) {
+    //  throw new Error(
+    //    'proposalName is not defined. Please fill the field "Proposal".'
+    //  );
+    //}
     else if (!appState.keyName || appState.keyName.length == 0) {
       throw new Error(
         'keyName is not defined. Please fill the field "Key Name".'
@@ -737,35 +731,8 @@ export async function approve(appState: AppState): Promise<void> {
     }
 
     console.log("Getting data from the chain");
-    const proposal = await appState.connector.getProposal(appState.accountID, appState.proposalName);
+    const proposal = await appState.connector.getProposal(appState.accountID, appState.accountID);
     const authKey  = await appState.connector.getAuthKey(appState.accountID, appState.keyName);
-    // var proposals = await appState.connector.getTableRows(environment.eosio.contract, appState.accountID,"proposals");
-
-    // if (!proposals.isSucceeded)
-    //   throw new Error("Getting data from the chain failed with error: " + proposals.desc);
-
-      //For PoC we will use last added proposal
-
-
-
-    //const lastProposal: ProposalStruct = getLastProposal(proposals.desc);
-
-
-    ///
-    // var keys = await appState.connector.getTableRows(
-    //   environment.eosio.contract,
-    //   appState.accountID,
-    //   "authorities"
-    // );
-
-    // if (!keys.isSucceeded)
-    //   throw new Error(
-    //     "Getting data from the chain failed with error: " + keys.desc
-    //   );
-
-    //   //For PoC we will use last added key
-    // var lastKey = getLastKey(keys.desc[0].keys);
-
 
     //get/define the data
     const rpId = window.location.hostname;
@@ -773,45 +740,6 @@ export async function approve(appState: AppState): Promise<void> {
     const username = appState.accountID; //'Mo.Lestor'
     const displayName = username + "@gmail.com";
     //const credentialID = lastKey.keyid;
-
-
-
-
-
-    // const challenge = /*lastProposal.data;*/new Uint8Array([
-    //   0x8c,
-    //   0x0a,
-    //   0x26,
-    //   0xff,
-    //   0x22,
-    //   0x91,
-    //   0xc1,
-    //   0xe9,
-    //   0xb9,
-    //   0x4e,
-    //   0x2e,
-    //   0x17,
-    //   0x1a,
-    //   0x98,
-    //   0x6a,
-    //   0x73,
-    //   0x71,
-    //   0x9d,
-    //   0x43,
-    //   0x48,
-    //   0xd5,
-    //   0xa7,
-    //   0x6a,
-    //   0x15,
-    //   0x7e,
-    //   0x38,
-    //   0x94,
-    //   0x52,
-    //   0x77,
-    //   0x97,
-    //   0x0f,
-    //   0xef,
-    // ]);
 
     console.log("Start webauthn process");
     var waresult: WebAuthnApproveResult = await approveWA(
@@ -826,9 +754,40 @@ export async function approve(appState: AppState): Promise<void> {
 
     const result = await appState.connector.approve(
       appState.accountID,
-      appState.proposalName,
+      appState.accountID,
       authKey.key_name,
       waresult.signature
+    );
+    const isSucceeded = String(result.isSucceeded);
+    appendMessage(
+      appState,
+      `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
+    );
+  }
+  catch(e) {
+    //show in console
+    console.log(e);
+    //show on UIk
+    appendMessage(appState, e);
+  }
+}
+
+export async function cancel(appState: AppState): Promise<void> {
+  try {
+    appendMessage(appState, "Starting action: 'cancel'");
+    if (!appState.accountID)
+      throw new Error(
+        'AccountID is not defined. Please fill the field "AccountID".'
+      );
+    //else if (!appState.proposalName || appState.proposalName.length == 0) {
+    //  throw new Error(
+    //    'proposalName is not defined. Please fill the field "Proposal".'
+    //  );
+    //}
+
+    const result = await appState.connector.cancel(
+      appState.accountID,
+      appState.accountID,
     );
     const isSucceeded = String(result.isSucceeded);
     appendMessage(
@@ -851,11 +810,11 @@ export async function exec(appState: AppState): Promise<void> {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
-    else if (!appState.proposalName || appState.proposalName.length == 0) {
-      throw new Error(
-        'proposalName is not defined. Please fill the field "Proposal".'
-      );
-    }
+    //else if (!appState.proposalName || appState.proposalName.length == 0) {
+    //  throw new Error(
+    //    'proposalName is not defined. Please fill the field "Proposal".'
+    //  );
+    //}
 
     const result = await appState.connector.api.transact(
     {
@@ -864,7 +823,7 @@ export async function exec(appState: AppState): Promise<void> {
             name: 'exec',
             data: {
                 account: appState.accountID,
-                proposal_name: appState.proposalName,
+                proposal_name: appState.accountID,
             },
             authorization: [{
                 actor: appState.accountID,
@@ -902,43 +861,6 @@ async function getTable(appState: AppState) {
   );
   if (Array.isArray(result)) appendMessage(appState, result.toString());
   else appendMessage(appState, result.desc);
-}
-
-function Controls({ appState }: { appState: AppState }) {
-  return (
-    <div className="control">
-      <button
-        onClick={() => {
-          propose(appState);
-        }}
-      >
-        Propose
-      </button>
-      <button
-        onClick={() => {
-          approve(appState);
-        }}
-      >
-        Approve
-      </button>
-      <button
-        onClick={() => {
-          exec(appState);
-        }}
-      >
-        Execute
-      </button>
-
-      <br />
-      <button
-        onClick={() => {
-          registerDevice(appState);
-        }}
-      >
-        Register device
-      </button>
-    </div>
-  );
 }
 
 

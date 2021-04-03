@@ -221,4 +221,38 @@ export class Connector{
             return new Result(false, e);
         }
     }
+
+    async cancel(user: string, proposal_name: string): Promise<Result> {
+        try {
+            const result = await this.api.transact(
+                {
+                    actions: [{
+                        account: environment.eosio.contract,
+                        name: 'approve',
+                        data: {
+                            account: user,
+                            proposal_name: proposal_name,
+                        },
+                        authorization: [{
+                            actor: user,
+                            permission: 'active', //'wamsig'
+                        }],
+                    }],
+                }, {
+                    blocksBehind: 3,
+                    expireSeconds: 30,
+                });
+            console.log(result);
+            return new Result(true, result.transaction_id);
+        } catch (e) {
+            //reutnr RPC error
+            if (e instanceof RpcError){
+                console.log("Connector:cancel; RPC error: " + JSON.stringify(e.json, null, 2));
+                return new Result(false,JSON.stringify(e.json, null, 2));
+            }
+            //return basic result
+            console.log("Connector:cancel; Error: " + e);
+            return new Result(false, e);
+        }
+    }
 }
