@@ -57,6 +57,7 @@
       "eosjs": "file:external/eosjs",
       "eosjs-ecc": "^4.0.4",
       "fast-text-encoding": "^1.0.3",
+      "file-loader": "^6.2.0",
       "moment": "^2.29.1",
       "nanoid": "^3.1.22",
       "node-fetch": "^2.3.0",

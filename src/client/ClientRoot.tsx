@@ -20,12 +20,14 @@ import {
   KeyPair
 } from "./structures";
 const moment = require("moment");
-const { nanoid } = require("nanoid");
 
 //'use strict'
 const cbor = require("cbor-web");
 require("./style.css");
 require("./app.css");
+require("./screen/css/normalize.css");
+require("./screen/css/row-6b2b63.webflow.css");
+require("./screen/css/webflow.css");
 
 
 const socketUrl = "https://ubi.world:8000";
@@ -71,9 +73,9 @@ export class AppState {
     this.keyName = keyName;
   }
 
-  public setProposalName(prososalName: string) {
-    this.proposalName = prososalName;
-  }
+  //public setProposalName(prososalName: string) {
+  //  this.proposalName = prososalName;
+  //}
 
   public restore(prev: AppState) {
     /*
@@ -86,19 +88,6 @@ export class AppState {
         this.sigprov.keys.clear();
         for (const key of this.keys)
             this.sigprov.keys.set(key.key, key.credentialId);*/
-  }
-
-  private async updateBalance(name: string) {
-    /*while (this.alive) {
-            try {
-                await delay(200);
-                this.balances.set(name, (await this.rpc.get_currency_balance('eosio.token', name))[0]);
-                if (this.clientRoot)
-                    this.clientRoot.forceUpdate();
-            } catch (e) {
-                console.log(e);
-            }
-        }*/
   }
 }
 
@@ -122,13 +111,6 @@ function connectSocket(appState: AppState) {
     appState.clientRoot.forceUpdate();
   });
 }
-
-async function delay(ms: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 //////
 
 interface AddKeyArgs {
@@ -229,12 +211,7 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
   };
 }
 
-/////
-
-function popUp(text: string) {}
-
 //Register device
-
 export async function registerDevice(appState: AppState) {
   try {
     if (!appState.accountID)
@@ -844,7 +821,6 @@ export async function exec(appState: AppState): Promise<void> {
   }
   catch(e) {
     //show in console
-
     console.log(e);
     //show on UIk
     appendMessage(appState, e);

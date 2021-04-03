@@ -49,42 +49,83 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
       const { appState } = this.props;
       return (
         <div>
-        <Grid container className="container">
-          <Grid item xs={12} md={6} className="item11">Home</Grid>
-          <Grid item xs={12} md={6} className="item12">About</Grid>
-        </Grid>
-        <Grid container className="container">
-          <Grid item xs={12} md={6} className="item21">
-            <div className="divClass">
-              <img src="https://dwglogo.com/wp-content/uploads/2017/09/1460px-React_logo.png" alt={`ZP picture`}  className="img-responsive" />
+          <div className="_1sectionbg">
+    <div className="container w-container">
+      <div className="div-block-3">
+        <h1 className="heading distancetop">ROW - Recoverable Online Wallets</h1>
+        <h4 className="subheading">A demo UI</h4>
+        <div className="div-block-4">
+          <div>
+            <div className="form-block w-form">
+              <form id="email-form-2" name="email-form-2" data-name="Email Form 2"><label htmlFor="AccountName" className="field-label">Account name</label>
+			  <input type="text" className="field w-input" maxLength={256} name="AccountName" data-name="AccountName" placeholder="rowuseruser1" id="AccountName"></input>
+			  <label htmlFor="DeviceName" className="field-label">Device name </label>
+			  
+			  <input type="text" className="field w-input" maxLength={256} name="DeviceName" data-name="DeviceName" placeholder="androidphone" id="DeviceName"></input>
+			  
+			  </form>
+              <div className="w-form-done"></div>
+              <div className="w-form-fail"></div>
             </div>
-
-          </Grid>
-          <Grid item xs={12} md={6} className="item22">
-
-          <div className="col-lg-7">
-                <h3>What is WebAuthn?</h3>
-                <p>Welcome to webauthn.io! This site is designed by <a href="https://duo.com/labs">Duo Labs</a> to test
-                    the new
-                    W3C Specification Web Authentication. WebAuthn is supported in the Chrome,
-                    Firefox, and Edge browsers to different degrees, but support for credential
-                    creation and assertion using a U2F Token, like those provided by Yubico and
-                    Feitian, is supported by all of them. The code for this demo can be found
-                    <a href="https://github.com/duo-labs/webauthn.io">here on GitHub</a>. To read more about WebAuthn
-                    and what is does, check out
-                    <a href="https://webauthn.guide">webauthn.guide</a> for an introduction.</p>
-                <div className="row">
-                    <div className="col-md-8 col-sm-12">
-                        <a href="https://webauthn.guide" className="btn btn-primary btn-lg w-100">
-                            Read more at webauthn.guide
-                        </a>
-                    </div>
-                </div>
+            <div className="w-row">
+              <div className="column-3 w-col w-col-6">
+                <a href="#" className="buttonapprove w-button">Aprove 1/2</a>
+                <div className="text-block">propose + aprove1</div>
+              </div>
+              <div className="w-col w-col-6">
+                <a href="#" className="buttonapprove w-button">Aprove 2/2</a>
+                <div className="text-block">aprove2 + execute</div>
+              </div>
             </div>
-
-          </Grid>
-      </Grid>
+          </div>
+          <div className="section-2">
+            <div className="div-block-5">
+              <a href="#" className="buttonadvanced w-button">Add device<br></br> ‍</a>
+              <div className="text-block">first time only</div>
+            </div>
+            <div className="div-block-6">
+              <a href="#" className="buttonadvanced proposal w-button">Cancel proposal</a>
+              <div className="text-block">If you are getting errors</div>
+            </div>
+          </div>
+        </div>
       </div>
+      <div className="div-block-2"></div>
+    </div>
+  </div>
+  <div className="section">
+    <div className="w-container">
+      <div className="w-form">
+        <form id="email-form" name="email-form" data-name="Email Form"><textarea name="field" maxLength={5000} id="field" placeholder="Log" className="w-input"></textarea></form>
+        <div className="w-form-done">
+          <div>Thank you! Your submission has been received!</div>
+        </div>
+        <div className="w-form-fail">
+          <div>Oops! Something went wrong while submitting the form.</div>
+        </div>
+      </div>
+    </div>
+    <div className="container3 w-container">
+      <div className="columns w-row">
+        <div className="column-2 w-col w-col-5 w-col-small-small-stack">
+          <div className="div-block"></div>
+        </div>
+        <div className="column w-col w-col-7 w-col-small-small-stack">
+          <h1 className="heading-copy">Recoverable Online Walets</h1>
+          <p className="paragraph">ROW expands on WebAuthn for use and brings social recovery that empowers communities to secure themselves without trusting any intermediaries.<br></br>2 out of 2 multisig for usage- usually your Phone and PC.<br></br>2 out of 4 multisig for recovery- usually your Phone, Pc, Trusted friend1 Phone and Trusted friend2 Phone.<br></br>Does not require server to hold webauthn KeyIDs, ROW saves them on the EOSIO chain. ROW manages multisig on a custom multisig contract which allows future additions of RSA and other digital signature algorithms.</p>
+          <a href="#" className="buttongithub w-button">Read more on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div className="footer">
+    <div className="container-2 w-container">
+      <a href="mailto:zeropass@pm.me" className="footertext">ZeroPass</a>
+    </div>
+  </div>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=60674b22440b5619b46b5feb" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="></script>
+  <script src="js/webflow.js" type="text/javascript"></script>
+        </div>
       );
     }
   }
