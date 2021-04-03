@@ -44,9 +44,25 @@ export class AppState {
   public message = "";
   public balances = new Map<string, string>();
   public connector: Connector;
+  public paramAccount: string = null;
+
+  
 
   constructor() {
     this.connector = new Connector(environment.eosio.host);
+    //get parameters from url
+    this.getURLparams();
+  }
+
+  public getURLparams(){
+    var ui = new URLSearchParams(document.location.search).entries();
+    var params = new URLSearchParams(document.location.search);
+    for(var key of params.keys()) {
+      console.log(key);
+    }
+    var account: string  = new URLSearchParams(document.location.search).get("acc");
+    if (account != null && account.length > 0)
+      this.paramAccount  = account;
   }
 
   public changeAccountID(accountID: string) {
