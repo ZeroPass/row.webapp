@@ -13,8 +13,15 @@
 }
 
 .div-block-2 {
+  position: relative;
+  left: auto;
+  top: 0%;
+  right: 0%;
+  bottom: 0%;
+  z-index: 0;
   width: 500px;
-  height: 300px;
+  height: 140px;
+  margin-top: -165px;
   margin-bottom: 23px;
   margin-left: -500px;
   -webkit-box-pack: end;
@@ -119,15 +126,14 @@
   display: -ms-flexbox;
   display: flex;
   height: 100%;
-  -webkit-box-orient: horizontal;
+  -webkit-box-orient: vertical;
   -webkit-box-direction: normal;
-  -webkit-flex-direction: row;
-  -ms-flex-direction: row;
-  flex-direction: row;
-  -webkit-box-pack: start;
-  -webkit-justify-content: flex-start;
-  -ms-flex-pack: start;
-  justify-content: flex-start;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  -webkit-justify-content: space-around;
+  -ms-flex-pack: distribute;
+  justify-content: space-around;
   -webkit-box-align: stretch;
   -webkit-align-items: stretch;
   -ms-flex-align: stretch;
@@ -280,6 +286,11 @@
   font-family: 'JetBrains Mono', sans-serif;
 }
 
+.div-block-4 {
+  position: relative;
+  z-index: 1;
+}
+
 .buttonapprove {
   width: 100%;
   height: 50px;
@@ -340,6 +351,7 @@
   display: -ms-flexbox;
   display: flex;
   margin-top: 34px;
+  margin-bottom: 40px;
   -webkit-box-orient: vertical;
   -webkit-box-direction: normal;
   -webkit-flex-direction: column;
@@ -372,6 +384,10 @@
 }
 
 @media screen and (max-width: 767px) {
+  .div-block-2 {
+    margin-top: -65px;
+  }
+
   .columns {
     -webkit-box-orient: vertical;
     -webkit-box-direction: normal;
@@ -391,6 +407,13 @@
     -webkit-flex-direction: column;
     -ms-flex-direction: column;
     flex-direction: column;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .div-block-2 {
+    width: 400px;
+    margin-top: -53px;
   }
 }
 

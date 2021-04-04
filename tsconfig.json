@@ -21,10 +21,10 @@
     "include": [
         "src/**/*",
         "src/**/*.ts",
-        "src/fonts/*",
         "node_modules/eosjs/**/*.d.ts",
         "node_modules/@types", 
         "src/client/customUtils.ts",
+        "src/client/screen/images/*",
         //"src/client/utils/customUtils.d.ts"    
 ]
 }

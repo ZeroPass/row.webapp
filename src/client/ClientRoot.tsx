@@ -63,6 +63,7 @@ export class AppState {
     for(var key of params.keys()) {
       this.paramAccount  = key;
     }
+    this.accountID = this.paramAccount;
   }
 
   public changeAccountID(accountID: string) {

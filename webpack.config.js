@@ -21,12 +21,32 @@ module.exports = {
                     { loader: "css-loader" }
                 ]
             },
-            {
-                test: /\.(jpe?g|png|gif|woff|woff2|eot|ttf|svg)(\?[a-z0-9=.]+)?$/,
-                loader: 'file-loader'
+            //{ test: /\.(jpe?g|png|gif|woff|woff2|eot|ttf|svg)$/i, loader: 'file-loader'},
+            /*{
+                test: /\.(png|svg|gif)$/i,
+                use: [
+                  {
+                    loader: 'url-loader',
+                    options: {
+                      limit: 8192,
+                    },
+                  },
+                ],
+              },*/
+              {
+                test: /\.(jpg|png|gif|svg)$/,
+                use: {
+                    loader: 'file-loader',
+                    options: {
+                        esModule: false
+                }
             }
-        
-        ]
+              }
+        ],
+        /*loaders: [
+            { test: /\.(png|jpg)$/, loader: 'url-loader?limit=8192' }
+        ]*/
+
     },
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],
@@ -46,7 +66,8 @@ module.exports = {
         new HtmlWebpackPlugin({
             hash: true,
             template: './src/client/index.html',
-            filename: 'index.html'
+            filename: 'index.html',
+            favicon: "./src/client/screen/images/favicon.ico"
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NoEmitOnErrorsPlugin(),
