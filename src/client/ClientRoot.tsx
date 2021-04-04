@@ -589,7 +589,6 @@ export async function propose(appState: AppState) {
     var timestamp = new Date();
     timestamp.setMinutes(timestamp.getMinutes() + 5);
 
-
     var TEMP_RAW_TRANSACTION  = [
       {
         account: "eosio.token",
@@ -597,13 +596,13 @@ export async function propose(appState: AppState) {
         authorization: [
           { 
             actor: username,
-            permission: 'owner',
+            permission: 'active',
           }
         ], data: {
           from: username,
           to: "rowuseruser2",
           quantity:"1.0100 EOS",
-          memo:"Transfer made by using ROW"
+          memo:"Transfer by ROW"
       },
       }
     ];
@@ -635,6 +634,30 @@ export async function propose(appState: AppState) {
       ],
       transaction_extensions: false,
     };
+
+    var TEMP_FIXED_TRANSACTION1 = {
+      expiration: moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
+      ref_block_num: 0,
+      ref_block_prefix: 0,
+      max_net_usage_words: 0,
+      max_cpu_usage_ms: 0,
+      delay_sec: 0,
+      context_free_actions: false,
+      actions: [
+        {
+          account: "irowyourboat",
+          name: "hi",
+          authorization: [
+            {
+              actor: username,
+              permission: "active",
+            },
+          ],
+          data: "10aec2fa2aac39bd",
+        },
+      ],
+      transaction_extensions: false,
+    }
 
     console.log("Getting data from the chain");
 
@@ -712,7 +735,7 @@ function getProposalTx(proposals: any[]): ProposalStruct {
   return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
 }
 
-export async function approve(appState: AppState): Promise<void> {
+export async function approve(appState: AppState): Promise<boolean> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -762,16 +785,18 @@ export async function approve(appState: AppState): Promise<void> {
       appState,
       `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
     );
+    return true;
   }
   catch(e) {
     //show in console
     console.log(e);
     //show on UIk
     appendMessage(appState, e);
+    return false;
   }
 }
 
-export async function cancel(appState: AppState): Promise<void> {
+export async function cancel(appState: AppState): Promise<boolean> {
   try {
     appendMessage(appState, "Starting action: 'cancel'");
     if (!appState.accountID)
@@ -793,17 +818,18 @@ export async function cancel(appState: AppState): Promise<void> {
       appState,
       `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
     );
+    return true;
   }
   catch(e) {
     //show in console
-
     console.log(e);
     //show on UIk
     appendMessage(appState, e);
+    return false;
   }
 }
 
-export async function exec(appState: AppState): Promise<void> {
+export async function exec(appState: AppState): Promise<boolean> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -840,12 +866,14 @@ export async function exec(appState: AppState): Promise<void> {
       appState,
       `Is transaction succeeded: true, description: ${result.transaction_id}`
     );
+    return true;
   }
   catch(e) {
     //show in console
     console.log(e);
     //show on UIk
     appendMessage(appState, e);
+    return false;
   }
 }
 

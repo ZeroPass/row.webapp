@@ -68,8 +68,9 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                         maxLength={256} 
                         name="AccountName" 
                         data-name="AccountName" 
-                        placeholder={appState.accountID} 
+                        placeholder="Write your account name"
                         id="AccountName"
+                        value= {appState.accountID}
                         onChange={(e) => appState.changeAccountID(e.target.value)}
                         >
                       </input>
@@ -95,9 +96,12 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                         <a href="#" className="buttonapprove w-button">Aprove 1/2</a>
                         <div className="text-block">propose + aprove1</div>
                       </div>
-                      <div className="w-col w-col-6" onClick={() => {
-                          approve(appState);
-                          //TODO: add also first approve
+                      <div className="w-col w-col-6" onClick={async()  => {
+                          var result = await approve(appState);
+                          if (result)
+                              result = await exec(appState)
+                              //if (result)
+                              //  await cancel(appState);
                           }}>
                         <a href="#" className="buttonapprove w-button">Aprove 2/2</a>
                         <div className="text-block">aprove2 + execute</div>
