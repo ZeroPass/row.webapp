@@ -1,5 +1,5 @@
 import * as React from "react";
-import {AppState, propose, approve, registerDevice, exec} from "../ClientRoot";
+import {AppState, propose, approve, registerDevice, exec, cancel} from "../ClientRoot";
 
 
 //<Controls appState={appState} />
@@ -36,6 +36,14 @@ function Controls({ appState }: { appState: AppState }) {
         }}
       >
         Register device
+      </button>
+      < br />
+      <button
+        onClick={() => {
+          cancel(appState);
+        }}
+      >
+        Cancel propose
       </button>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Api, JsonRpc, Serialize, Numeric } from "eosjs";
+import { Api, JsonRpc, Serialize, Numeric} from "eosjs";
 import { ec } from 'elliptic';
 import { watch } from "fs";
 import * as React from "react";
@@ -26,9 +26,8 @@ const cbor = require("cbor-web");
 require("./style.css");
 require("./app.css");
 require("./screen/css/normalize.css");
-require("./screen/css/row-6b2b63.webflow.css");
 require("./screen/css/webflow.css");
-
+require("./screen/css/row-6b2b63.webflow.css");
 
 const socketUrl = "https://ubi.world:8000";
 
@@ -590,6 +589,28 @@ export async function propose(appState: AppState) {
     var timestamp = new Date();
     timestamp.setMinutes(timestamp.getMinutes() + 5);
 
+
+    var TEMP_RAW_TRANSACTION  = [
+      {
+        account: "eosio.token",
+        name: "transfer",
+        authorization: [
+          { 
+            actor: username,
+            permission: 'owner',
+          }
+        ], data: {
+          from: username,
+          to: "rowuseruser2",
+          quantity:"1.0100 EOS",
+          memo:"Transfer made by using ROW"
+      },
+      }
+    ];
+    
+    let seActions = await appState.connector.serializeTransaction( TEMP_RAW_TRANSACTION );
+    console.log(seActions[0].data);
+
     //"2021-03-18T11:25:23",
     var TEMP_FIXED_TRANSACTION = {
       expiration: moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
@@ -601,15 +622,15 @@ export async function propose(appState: AppState) {
       context_free_actions: false,
       actions: [
         {
-          account: "irowyourboat",
-          name: "hi",
+          account: "eosio.token",
+          name: "transfer",
           authorization: [
             {
               actor: username,
               permission: "active",
             },
           ],
-          data: "10aec2fa2aac39bd",
+          data: seActions[0].data
         },
       ],
       transaction_extensions: false,

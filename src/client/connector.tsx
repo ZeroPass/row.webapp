@@ -33,7 +33,7 @@ export class Connector{
         //fixed private key - just for presentation
         const defaultPrivateKey = environment.eosio.privateKeyTemp;
         const signatureProvider = new JsSignatureProvider([defaultPrivateKey]);
-        this.api =  new Api({ rpc: this.rpc, signatureProvider, textDecoder: new TextDecoder(), textEncoder: new TextEncoder() })
+        this.api =  new Api({ rpc: this.rpc, signatureProvider, textDecoder: new TextDecoder(), textEncoder: new TextEncoder() });
 
         //multisig - FIDO private key
         this.apiFIDO = new Api({ rpc: this.rpc, signatureProvider: this.sigprov });
@@ -51,6 +51,10 @@ export class Connector{
         } catch (e) {
             return new Result(false, e);
         }
+    }
+
+    async serializeTransaction(transaction: any){
+        return this.api.serializeActions(transaction);
     }
 
     async getTableRows(code: string, scope: string, table: string, lower_bound: string = undefined, upper_bound: string = undefined ){
@@ -228,7 +232,7 @@ export class Connector{
                 {
                     actions: [{
                         account: environment.eosio.contract,
-                        name: 'approve',
+                        name: 'cancel',
                         data: {
                             account: user,
                             proposal_name: proposal_name,
