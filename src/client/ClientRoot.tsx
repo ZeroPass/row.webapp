@@ -482,6 +482,11 @@ async function approveWA(
     appendMessage(appState, e);
   }
 }
+function createLinkOnBlockExplorer(transactionID: string): string{
+  //block explorer
+  var BLOCK_EXPLORER = "https://jungle3.bloks.io";
+  return BLOCK_EXPLORER + "/transaction/" + transactionID; 
+}
 
 async function blockchainAddKey(
   appState: AppState,
@@ -514,7 +519,7 @@ async function blockchainAddKey(
   const isSucceeded = String(result.isSucceeded);
   appendMessage(
     appState,
-    `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
+    `Is transaction succeeded: ${isSucceeded}, description: ${createLinkOnBlockExplorer(result.desc)}`
   );
   return result;
 }
@@ -601,7 +606,7 @@ export async function propose(appState: AppState) {
         ], data: {
           from: username,
           to: "rowuseruser2",
-          quantity:"1.0100 EOS",
+          quantity:"4.2000 EOS",
           memo:"Transfer by ROW"
       },
       }
@@ -634,30 +639,6 @@ export async function propose(appState: AppState) {
       ],
       transaction_extensions: false,
     };
-
-    var TEMP_FIXED_TRANSACTION1 = {
-      expiration: moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
-      ref_block_num: 0,
-      ref_block_prefix: 0,
-      max_net_usage_words: 0,
-      max_cpu_usage_ms: 0,
-      delay_sec: 0,
-      context_free_actions: false,
-      actions: [
-        {
-          account: "irowyourboat",
-          name: "hi",
-          authorization: [
-            {
-              actor: username,
-              permission: "active",
-            },
-          ],
-          data: "10aec2fa2aac39bd",
-        },
-      ],
-      transaction_extensions: false,
-    }
 
     console.log("Getting data from the chain");
 
@@ -783,7 +764,7 @@ export async function approve(appState: AppState): Promise<boolean> {
     const isSucceeded = String(result.isSucceeded);
     appendMessage(
       appState,
-      `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
+      `Is transaction succeeded: ${isSucceeded}, description: ${createLinkOnBlockExplorer(result.desc)}`
     );
     return true;
   }
@@ -864,7 +845,7 @@ export async function exec(appState: AppState): Promise<boolean> {
     const isSucceeded = String(result.isSucceeded);
     appendMessage(
       appState,
-      `Is transaction succeeded: true, description: ${result.transaction_id}`
+      `Proposed transaction has been executed:  ${createLinkOnBlockExplorer(result.transaction_id)}`
     );
     return true;
   }

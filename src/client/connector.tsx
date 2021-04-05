@@ -5,8 +5,6 @@ import {environment} from './constant';
 import * as assert from 'assert';
 import { env } from 'process';
 
-//potrebujem pub key in key handle
-
 export class Result{
     public isSucceeded : boolean;
     public desc : any;

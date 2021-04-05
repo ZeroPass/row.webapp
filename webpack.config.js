@@ -67,7 +67,7 @@ module.exports = {
             hash: true,
             template: './src/client/index.html',
             filename: 'index.html',
-            favicon: "./src/client/screen/images/favicon.ico"
+            favicon: "./src/client/screen/images/ROWfavicon.ico"
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NoEmitOnErrorsPlugin(),
