@@ -1,9 +1,7 @@
 # ROW - Recoverable Online Wallets 
 
-[![EOSIO Labs](https://img.shields.io/badge/EOSIO-Labs-5cb3ff.svg)](#about-eosio-labs)
-
 ## Overview
-
+The ROW project is extended project of [EOSIO Webautn App](https://github.com/EOSIO/eosio-webauthn-example-app/)  made by EOSIO labs. The code is running only on client side (browser). Server is used only to host a server for https connection. Webauthn protocol cannot work without https connection (security reason).
 
 
 ## Building and Running The App
