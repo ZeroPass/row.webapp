@@ -41,6 +41,16 @@ Install/setup repository
 
 `yarn setup`
 
+Update eosjs library (because of [bug](https://github.com/EOSIO/eosjs/issues/853))
+
+ *In file eosjs/dist/eosjs-numerics.js; function 'stringToSignature' add new else if:  *
+ 
+```
+else if (s.substr(0, 7) === 'SIG_WA_') {
+        return stringToKey(s.substr(7), KeyType.wa, 0, 'WA');
+    }
+```
+
 #### HTTPS proxy via self-signed localhost certificate:
 
 The following describes one way of placing an HTTPS proxy in front of the server via the program `haproxy` along with a self-signed certificate that you instruct your browser to trust.
@@ -105,8 +115,8 @@ backend http_backend
 The server domain name and port must be specified in the source of this application. Modify the `socketUrl` in `src/client/ClientRoot.tsx` to be the valid HTTPS url to the HTTPS proxy. If you performed the self-signed & haproxy instructions above you would change this to `https://<domainName>`
 
 #### Starting/Stopping
-To start the haproxy, and the app:
-`yarn server`
+To start the haproxy, and the app (running with sudo privilegy, because port number is <1000:
+`sudo yarn server`
 
 ## License
 
