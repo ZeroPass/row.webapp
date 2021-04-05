@@ -1,11 +1,11 @@
 # ROW - Recoverable Online Wallets 
 
 ## Overview
-The ROW project is extended project of [EOSIO Webautn App](https://github.com/EOSIO/eosio-webauthn-example-app/)  made by EOSIO labs. The code is running only on client side (browser). Server is used only to host a server for https connection. Webauthn protocol cannot work without https connection (security reason).
+The ROW project is extended project of [EOSIO Webautn App](https://github.com/EOSIO/eosio-webauthn-example-app/). The code is running only on client side (browser). Server is used only to host a server for https connection. Webauthn protocol must be operated with https connection (security reason).
 
 
 ## Building and Running The App
-Running this app will create an HTTP server listening on `0.0.0.0:443` meaning it would typically be accessible via `http://<IP>` However, WebAuthn requires usage from an HTTPS origin. You will need to place an HTTPS proxy in front of the server and modify server source code with the resulting domain name and port.
+Running this app will create an HTTP server listening on `0.0.0.0:443` meaning it would typically be accessible via `https://<domain_name>` However, WebAuthn requires usage from an HTTPS origin. You will need to place an HTTPS proxy in front of the server and modify server source code with the resulting domain name and port.
 
 ### Running Locally With nodeos Docker Image
 
@@ -40,6 +40,16 @@ Install yarn
 Install/setup repository
 
 `yarn setup`
+
+Update eosjs library (because of [bug](https://github.com/EOSIO/eosjs/issues/853))
+
+ *In file eosjs/dist/eosjs-numerics.js; function 'stringToSignature' add new else if:  *
+ 
+```
+else if (s.substr(0, 7) === 'SIG_WA_') {
+        return stringToKey(s.substr(7), KeyType.wa, 0, 'WA');
+    }
+```
 
 #### HTTPS proxy via self-signed localhost certificate:
 
@@ -105,8 +115,8 @@ backend http_backend
 The server domain name and port must be specified in the source of this application. Modify the `socketUrl` in `src/client/ClientRoot.tsx` to be the valid HTTPS url to the HTTPS proxy. If you performed the self-signed & haproxy instructions above you would change this to `https://<domainName>`
 
 #### Starting/Stopping
-To start the haproxy, and the app:
-`yarn server`
+To start the haproxy, and the app (running with sudo privilegy, because port number is <1000:
+`sudo yarn server`
 
 ## License
 
