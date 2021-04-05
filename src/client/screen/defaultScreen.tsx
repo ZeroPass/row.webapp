@@ -93,8 +93,8 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                           propose(appState);
                           //TODO: add also first approve
                           }}>
-                        <a href="#" className="buttonapprove w-button">Aprove 1/2</a>
-                        <div className="text-block">propose + aprove1</div>
+                        <a href="#" className="buttonapprove w-button">Approve 1/2</a>
+                        <div className="text-block">propose + approve1</div>
                       </div>
                       <div className="w-col w-col-6" onClick={async()  => {
                           var result = await approve(appState);
@@ -103,8 +103,8 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                               //if (result)
                               //  await cancel(appState);
                           }}>
-                        <a href="#" className="buttonapprove w-button">Aprove 2/2</a>
-                        <div className="text-block">aprove2 + execute</div>
+                        <a href="#" className="buttonapprove w-button">Approve 2/2</a>
+                        <div className="text-block">approve2 + execute</div>
                       </div>
                     </div>
                   </div>
