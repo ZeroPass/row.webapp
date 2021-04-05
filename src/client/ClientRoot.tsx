@@ -29,7 +29,7 @@ require("./screen/css/normalize.css");
 require("./screen/css/webflow.css");
 require("./screen/css/row-6b2b63.webflow.css");
 
-const socketUrl = "https://ubi.world:443";
+const socketUrl = "https://rowauthn.com:443";
 
 export class AppState {
   public alive = true;
