@@ -78,19 +78,9 @@ export class AppState {
   //  this.proposalName = prososalName;
   //}
 
-  public restore(prev: AppState) {
-    /*
-        this.message = prev.message;
-        this.setKeys(prev.keys);*/
-  }
+  public restore(prev: AppState) {}
 
-  public setKeys(keys: WaKey[]) {
-    /*this.keys = keys;
-        this.sigprov.keys.clear();
-        for (const key of this.keys)
-            this.sigprov.keys.set(key.key, key.credentialId);*/
-  }
-}
+  public setKeys(keys: WaKey[]) {}
 
 function appendMessage(appState: AppState, message: string) {
   console.log("Appended message: " + message);
@@ -112,7 +102,6 @@ function connectSocket(appState: AppState) {
     appState.clientRoot.forceUpdate();
   });
 }
-//////
 
 interface AddKeyArgs {
   rpid: string;
@@ -590,7 +579,7 @@ function getLastKey(receivedKeys: any[]): KeyPair {
   }
 
 
-export async function propose(appState: AppState) {
+export async function propose(appState: AppState): Promise<boolean> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -629,7 +618,6 @@ export async function propose(appState: AppState) {
     let seActions = await appState.connector.serializeTransaction( TEMP_RAW_TRANSACTION );
     console.log(seActions[0].data);
 
-    //"2021-03-18T11:25:23",
     var TEMP_FIXED_TRANSACTION = {
       expiration: moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
       ref_block_num: 0,
@@ -697,42 +685,14 @@ export async function propose(appState: AppState) {
         appState.accountID +
         " has been added on chain"
     );
+    return true;
   } catch (e) {
     //show in console
     console.log(e);
     //show on UI
     appendMessage(appState, e);
+    return false;
   }
-}
-
-
-
-function getLastProposal(proposals: any[]): ProposalStruct {
-  if (proposals.length == 0)
-    throw new Error(
-      "No proposals under current account. Please add proposal first to your account to use current action."
-    );
-
-  var last = proposals.length - 1;
-  var proposal_name = proposals[last].proposal_name;
-  var data = proposals[last].packed_transaction;
-
-  console.log("Last proposal; proposal name:" + proposal_name + ", data: " + data);
-  return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
-}
-
-function getProposalTx(proposals: any[]): ProposalStruct {
-  if (proposals.length == 0)
-    throw new Error(
-      "No proposals under current account. Please add proposal first to your account to use current action."
-    );
-
-  var last = proposals.length - 1;
-  var proposal_name = proposals[last].proposal_name;
-  var data = proposals[last].packed_transaction;
-
-  console.log("Last proposal; proposal name:" + proposal_name + ", data: " + data);
-  return new ProposalStruct(proposal_name, Serialize.hexToUint8Array(data));
 }
 
 export async function approve(appState: AppState): Promise<boolean> {
