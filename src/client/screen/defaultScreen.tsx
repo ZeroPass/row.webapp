@@ -80,13 +80,12 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                         maxLength={256} 
                         name="DeviceName" 
                         data-name="DeviceName" 
-			placeholder="Write your device name"
+                        placeholder="Write your device name"  
                         id="DeviceName"
                         onChange={(e) => appState.setKeyName(e.target.value)}
                         >
                       </input>
                 </form>
-                      <div className="w-form-done"></div>
                       <div className="w-form-fail"></div>
                     </div>
                     <div className="w-row">
