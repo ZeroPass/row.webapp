@@ -4,7 +4,7 @@
 import * as express from 'express';
 import * as fs from 'fs';
 import * as SocketIO from 'socket.io';
-import { Key } from '../common/Key';
+import { WaKey } from '../common/Key';
 
 const keysPath = 'keys.json';
 
@@ -42,7 +42,7 @@ function flagsToPresence(flags: number) {
         return UserPresence.none;
 }
 
-let keys = [] as Key[];
+let keys = [] as WaKey[];
 function loadKeys() {
     try {
         keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));

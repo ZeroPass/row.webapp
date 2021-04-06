@@ -4,7 +4,7 @@ import { watch } from "fs";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
-import { Key } from "../common/Key";
+import { PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey, WaSignature } from "../common/Key";
 import { Connector, Result } from "./connector";
 import { environment } from "./constant";
 import * as Tabs from "./component/Tabs";
@@ -19,6 +19,7 @@ import {
   ProposalStruct,
   KeyPair
 } from "./structures";
+import { createSecretKey } from "crypto";
 const moment = require("moment");
 
 //'use strict'
@@ -35,7 +36,7 @@ export class AppState {
   public alive = true;
   public io: SocketIOClient.Socket;
   public clientRoot: ClientRoot;
-  public keys = [] as Key[];
+  public keys = [] as WaKey[];
   public accountID: string = "";
   public keyName: string = "";
   //public proposalName: string = ""; //proposal will be the same as accountID
@@ -45,7 +46,7 @@ export class AppState {
   public connector: Connector;
   public paramAccount: string = null;
 
-  
+
 
   constructor() {
     this.connector = new Connector(environment.eosio.host);
@@ -83,7 +84,7 @@ export class AppState {
         this.setKeys(prev.keys);*/
   }
 
-  public setKeys(keys: Key[]) {
+  public setKeys(keys: WaKey[]) {
     /*this.keys = keys;
         this.sigprov.keys.clear();
         for (const key of this.keys)
@@ -127,19 +128,13 @@ const enum AttestationFlags {
   extensionDataPresent = 0x80,
 }
 
-const enum UserPresence {
-  none = 0,
-  present = 1,
-  verified = 2,
-}
-
 function flagsToPresence(flags: number) {
   if (flags & AttestationFlags.userVerified) return UserPresence.verified;
   else if (flags & AttestationFlags.userPresent) return UserPresence.present;
   else return UserPresence.none;
 }
 
-async function decodeKey(k: AddKeyArgs): Promise<Key> {
+async function decodeKey(k: AddKeyArgs): Promise<WaKey> {
   // todo: check RP ID hash
   // todo: check signature
   let unloadedModule = false;
@@ -165,50 +160,45 @@ async function decodeKey(k: AddKeyArgs): Promise<Key> {
   pos += 2;
   const credentialId = new Uint8Array(data.buffer, data.byteOffset + pos, credentialIdLength);
   pos += credentialIdLength;
-  var yew = await (cbor as any).decodeFirst(new Uint8Array(data.buffer, data.byteOffset + pos));
+  if (Serialize.arrayToHex(credentialId) !== k.id)
+    throw new Error("Credential ID does not match");
+
   const pubKey = await (cbor as any).decodeFirst(
     new Uint8Array(data.buffer, data.byteOffset + pos)
   );
-  if (Serialize.arrayToHex(credentialId) !== k.id)
-    throw new Error("Credential ID does not match");
-  if (pubKey.get(1) !== 2) throw new Error("Public key is not EC2");
-  if (pubKey.get(3) !== -7) throw new Error("Public key is not ES256");
-  if (pubKey.get(-1) !== 1) throw new Error("Public key has unsupported curve");
-  const x = pubKey.get(-2);
-  const y = pubKey.get(-3);
-  if (x.length !== 32 || y.length !== 32)
-    throw new Error("Public key has invalid X or Y size");
 
-  const ser = new Serialize.SerialBuffer({
-    textEncoder: new TextEncoder(),
-    textDecoder: new TextDecoder(),
-  });
-  ser.push(y[31] & 1 ? 3 : 2);
-  ser.pushArray(x);
-  ser.push(flagsToPresence(flags));
-  ser.pushString(k.rpid);
-  const compact = ser.asUint8Array();
-  const key = Numeric.publicKeyToString({
-    type: Numeric.KeyType.wa,
-    data: compact,
-  });
-  console.log({
-    flags: ("00" + flags.toString(16)).slice(-2),
-    signCount,
-    aaguid,
-    credentialIdLength,
-    credentialId: Serialize.arrayToHex(credentialId),
-    rpid: k.rpid,
-    presence: flagsToPresence(flags),
-    x: Serialize.arrayToHex(x),
-    y: Serialize.arrayToHex(y),
-    compact: Serialize.arrayToHex(compact),
-    key,
-  });
-  return {
-    credentialId: Serialize.arrayToHex(credentialId),
-    key,
-  };
+  var keyType = pubKey.get(1);
+  if (keyType !== 2 && keyType !== 3) throw new Error("Public key is not EC2 or RSA");
+  if (pubKey.get(3) !== -7 && pubKey.get(3) !== -257) throw new Error("Public key is not ES256 or RS256");
+
+  var key : PublicKey;
+  if (keyType == 2) {//ES256
+    if (pubKey.get(-1) !== 1) throw new Error("Public key has unsupported curve");
+    const x = pubKey.get(-2);
+    const y = pubKey.get(-3);
+    if (x.length !== 32 || y.length !== 32)
+      throw new Error("Public key has invalid X or Y size");
+
+    const serKey = new Serialize.SerialBuffer({
+      textEncoder: new TextEncoder(),
+      textDecoder: new TextDecoder(),
+    });
+
+    // ECC
+    serKey.push(y[31] & 1 ? 3 : 2);
+    serKey.pushArray(x);
+    key = [PublicKeyType.ecc, Serialize.arrayToHex(serKey.asUint8Array())]
+  }
+  else { // RS256
+    var mod = Serialize.arrayToHex(pubKey.get(-1));
+    var exp = Serialize.arrayToHex(pubKey.get(-2));
+    key = [PublicKeyType.rsa, new RsaPublicKey(mod, exp)]
+  }
+
+  return new WaKey(
+    Serialize.arrayToHex(credentialId),
+    new WaPublicKey(key, flagsToPresence(flags), k.rpid)
+  );
 }
 
 //Register device
@@ -344,12 +334,16 @@ async function registerWA(
             type: "public-key",
             alg: -7,
           },
+          {
+            type: "public-key",
+            alg: -257,
+          },
         ],
         timeout: 60000,
         challenge: challenge
       },
     });
-    var key: Key = await decodeKey({
+    var key: WaKey = await decodeKey({
       rpid: rp.id,
       id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
       attestationObject: Serialize.arrayToHex(
@@ -366,7 +360,11 @@ async function registerWA(
       key.key
     );
   } catch (e) {
-    appendMessage(appState, e);
+    return new WebAuthnCreateResult(
+      new Valid(false, e),
+      null,
+      null
+    );
   }
 }
 
@@ -391,6 +389,10 @@ async function approveWA(
 
     if (!key) throw new Error("ApproveWA; key is undefined");
 
+    if (!Array.isArray(key.key.key) || key.key.key.length !== 2 || typeof key.key.key[0] !== 'string') {
+        throw new Error('Invalid WA public key');
+    }
+
     if (!packedTransaction)
       throw new Error("ApproveWA; packedTransaction is undefined");
 
@@ -407,11 +409,8 @@ async function approveWA(
     // } else {
     //     signBuf.pushArray(new Uint8Array(32));
     // }
-    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', signBuf.asUint8Array().slice().buffer));
-
-    const signatures = [] as string[];
-
-    const id = Serialize.hexToUint8Array(key.keyid);
+    const id        = Serialize.hexToUint8Array(key.keyid);
+    const digest    = new Uint8Array(await crypto.subtle.digest('SHA-256', signBuf.asUint8Array().slice().buffer));
     const assertion = await (navigator as any).credentials.get({
         publicKey: {
             timeout: 60000,
@@ -422,70 +421,85 @@ async function approveWA(
             challenge: digest.buffer,
         },
     });
-    const e = new ec('p256') as any;
-    const pubKey = e.keyFromPublic(Numeric.stringToPublicKey(key.key).data.subarray(0, 33)).getPublic();
 
-    const fixup = (x: Uint8Array) => {
-        const a = Array.from(x);
-        while (a.length < 32) {
-            a.unshift(0);
-        }
-        while (a.length > 32) {
-            if (a.shift() !== 0) {
-                throw new Error('Signature has an r or s that is too big');
-            }
-        }
-        return new Uint8Array(a);
+    var signature: string;
+    if (key.key.key[0] == PublicKeyType.ecc)
+    {
+      const e = new ec('p256') as any;
+      const pubKey = e.keyFromPublic(Serialize.hexToUint8Array(key.key.key[1])).getPublic();
+
+      const fixup = (x: Uint8Array) => {
+          const a = Array.from(x);
+          while (a.length < 32) {
+              a.unshift(0);
+          }
+          while (a.length > 32) {
+              if (a.shift() !== 0) {
+                  throw new Error('Signature has an r or s that is too big');
+              }
+          }
+          return new Uint8Array(a);
+      };
+
+      const der = new Serialize.SerialBuffer({ array: new Uint8Array(assertion.response.signature) });
+      if (der.get() !== 0x30) {
+          throw new Error('Signature missing DER prefix');
+      }
+      if (der.get() !== der.array.length - 2) {
+          throw new Error('Signature has bad length');
+      }
+      if (der.get() !== 0x02) {
+          throw new Error('Signature has bad r marker');
+      }
+      const r = fixup(der.getUint8Array(der.get()));
+      if (der.get() !== 0x02) {
+          throw new Error('Signature has bad s marker');
+      }
+      const s = fixup(der.getUint8Array(der.get()));
+
+      const whatItReallySigned = new Serialize.SerialBuffer();
+      whatItReallySigned.pushArray(new Uint8Array(assertion.response.authenticatorData));
+      whatItReallySigned.pushArray(new Uint8Array(
+          await crypto.subtle.digest('SHA-256', assertion.response.clientDataJSON)));
+      const hash = new Uint8Array(
+          await crypto.subtle.digest('SHA-256', whatItReallySigned.asUint8Array().slice()));
+      const recid = e.getKeyRecoveryParam(hash, new Uint8Array(assertion.response.signature), pubKey);
+
+      const sigData = new Serialize.SerialBuffer();
+      sigData.push(recid + 27 + 4);
+      sigData.pushArray(r);
+      sigData.pushArray(s);
+      signature = Serialize.arrayToHex(sigData.asUint8Array());
+    }
+    else if (key.key.key[0] == PublicKeyType.rsa) {
+      signature = Serialize.arrayToHex(new Uint8Array(assertion.response.signature));
+    }
+    else {
+      throw Error("Unsupported DSA algorithm");
+    }
+
+    const sig = {
+      signature: signature,
+      auth_data: Serialize.arrayToHex(new Uint8Array(assertion.response.authenticatorData)),
+      client_json: String.fromCharCode.apply(null, new Uint8Array(assertion.response.clientDataJSON))
     };
 
-    const der = new Serialize.SerialBuffer({ array: new Uint8Array(assertion.response.signature) });
-    if (der.get() !== 0x30) {
-        throw new Error('Signature missing DER prefix');
-    }
-    if (der.get() !== der.array.length - 2) {
-        throw new Error('Signature has bad length');
-    }
-    if (der.get() !== 0x02) {
-        throw new Error('Signature has bad r marker');
-    }
-    const r = fixup(der.getUint8Array(der.get()));
-    if (der.get() !== 0x02) {
-        throw new Error('Signature has bad s marker');
-    }
-    const s = fixup(der.getUint8Array(der.get()));
-
-    const whatItReallySigned = new Serialize.SerialBuffer();
-    whatItReallySigned.pushArray(new Uint8Array(assertion.response.authenticatorData));
-    whatItReallySigned.pushArray(new Uint8Array(
-        await crypto.subtle.digest('SHA-256', assertion.response.clientDataJSON)));
-    const hash = new Uint8Array(
-        await crypto.subtle.digest('SHA-256', whatItReallySigned.asUint8Array().slice()));
-    const recid = e.getKeyRecoveryParam(hash, new Uint8Array(assertion.response.signature), pubKey);
-
-    const sigData = new Serialize.SerialBuffer();
-    sigData.push(recid + 27 + 4);
-    sigData.pushArray(r);
-    sigData.pushArray(s);
-    sigData.pushBytes(new Uint8Array(assertion.response.authenticatorData));
-    sigData.pushBytes(new Uint8Array(assertion.response.clientDataJSON));
-
-    const sig = Numeric.signatureToString({
-        type: Numeric.KeyType.wa,
-        data: sigData.asUint8Array().slice(),
-    });
-    signatures.push(sig);
+    //signatures.push(sig);
     return new WebAuthnApproveResult(
       new Valid(true, "everything is fine"),
       sig
     );
   } catch (e) {
-    appendMessage(appState, e);
+    return new WebAuthnApproveResult(
+      new Valid(false, e),
+      null
+    );
   }
 }
 function createLinkOnBlockExplorer(transactionID: string): string{
   //block explorer
-  var BLOCK_EXPLORER = "https://jungle3.bloks.io";
-  return BLOCK_EXPLORER + "/transaction/" + transactionID; 
+  var BLOCK_EXPLORER = "https://local.bloks.io/account/eosio?nodeUrl=https%3A%2F%2F163.172.144.187%3A9899";
+  return BLOCK_EXPLORER + "/transaction/" + transactionID;
 }
 
 async function blockchainAddKey(
@@ -493,7 +507,7 @@ async function blockchainAddKey(
   accountID: string,
   keyName: string,
   keyID: string,
-  pubKey: string,
+  pubKey: WaPublicKey,
   weight: number = 1,
   wait_sec: number = 0
 ): Promise<Result> {
@@ -535,7 +549,7 @@ async function blockchainPropose(
   if (!requested_approvals || requested_approvals.length == 0)
     throw new Error("blockchainPropose; 'requested_approvals' is not defined");
   if (!trx) throw new Error("blockchainPropose; 'trx' is not defined");
-  //if (!appState.proposalName) 
+  //if (!appState.proposalName)
   //throw new Error("blockchainPropose; 'proposalName' is not defined");
 
   const result = await appState.connector.propose(
@@ -599,7 +613,7 @@ export async function propose(appState: AppState) {
         account: "eosio.token",
         name: "transfer",
         authorization: [
-          { 
+          {
             actor: username,
             permission: 'active',
           }
@@ -611,7 +625,7 @@ export async function propose(appState: AppState) {
       },
       }
     ];
-    
+
     let seActions = await appState.connector.serializeTransaction( TEMP_RAW_TRANSACTION );
     console.log(seActions[0].data);
 
@@ -651,6 +665,11 @@ export async function propose(appState: AppState) {
     if (!keys.isSucceeded)
       throw new Error(
         "Getting data from the chain failed with error: " + keys.desc
+      );
+
+    if (keys.desc.length == 0)
+      throw new Error(
+        "No keys on chain under current account. Please add key and then make new process"
       );
 
     var keyArray = createKeyArray(keys.desc[0].keys);
@@ -805,6 +824,119 @@ export async function cancel(appState: AppState): Promise<boolean> {
     //show in console
     console.log(e);
     //show on UIk
+    appendMessage(appState, e);
+    return false;
+  }
+}
+
+export async function testwasig(appState: AppState): Promise<boolean> {
+  try {
+    appendMessage(appState, "Starting action: 'testwasig'");
+    if (!appState.accountID)
+      throw new Error(
+        'AccountID is not defined. Please fill the field "AccountID".'
+      );
+
+      const rpId = window.location.hostname;
+    const rpName = rpId;
+    const username = appState.accountID; //'Mo.Lestor'
+    const displayName = username + "@gmail.com";
+    const challenge = new Uint8Array([
+      0x8c,
+      0x0a,
+      0x26,
+      0xff,
+      0x22,
+      0x91,
+      0xc1,
+      0xe9,
+      0xb9,
+      0x4e,
+      0x2e,
+      0x17,
+      0x1a,
+      0x98,
+      0x6a,
+      0x73,
+      0x71,
+      0x9d,
+      0x43,
+      0x48,
+      0xd5,
+      0xa7,
+      0x6a,
+      0x15,
+      0x7e,
+      0x38,
+      0x94,
+      0x52,
+      0x77,
+      0x97,
+      0x0f,
+      0xef,
+    ]);
+
+    console.log("Start webauthn process");
+    var wacr: WebAuthnCreateResult = await registerWA(
+      appState,
+      rpId,
+      rpName,
+      username,
+      displayName,
+      challenge
+    );
+
+    console.log(`WebAuthnCreateResult ${wacr.getValidation()}`);
+    if (!wacr.getValidation())
+      throw new Error(
+        "testwasig; registerWA returned an error: " + wacr.isValid.desc
+      );
+
+    const testDataToSign = new Uint8Array([0x8c]);
+    var waresult: WebAuthnApproveResult = await approveWA(
+      appState,
+      rpId,
+      rpName,
+      username,
+      displayName,
+      {key: wacr.key, keyid: wacr.keyID},
+      testDataToSign
+    );
+    if (!waresult.getValidation())
+      throw new Error(
+        "testwasig; approveWA returned an error: " + waresult.isValid.desc
+      );
+
+    console.log(wacr.key.key, waresult.signature);
+    const result = await appState.connector.api.transact(
+    {
+        actions: [{
+            account: environment.eosio.contract,
+            name: 'testwasig',
+            data: {
+              pubkey: wacr.key,
+              signed_hash: Serialize.arrayToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', testDataToSign))),
+              sig: waresult.signature,
+            },
+            authorization: [{
+                actor: username,
+                permission: 'active', //'wamsig'
+            }],
+        }],
+    }, {
+        blocksBehind: 3,
+        expireSeconds: 30,
+    });
+    console.log(result);
+    appendMessage(
+        appState,
+        `Is transaction succeeded: True, description: ${result.transaction_id}`
+    );
+
+    return true;
+  }
+  catch(e) {
+    console.log(e);
     appendMessage(appState, e);
     return false;
   }

@@ -1,14 +1,16 @@
+import { WaPublicKey, WaSignature } from "../common/Key";
+
 interface IWebAuthnCreateResult {
 
 
     isValid: Valid,
     keyID ?: string,
-    key ?: string
+    key ?: WaPublicKey
  }
 
 export class WebAuthnCreateResult implements IWebAuthnCreateResult
 {
-    constructor (public isValid: Valid, public keyID: string, public key: string)
+    constructor (public isValid: Valid, public keyID: string, public key: WaPublicKey)
     {
         this.isValid = isValid;
         this.keyID = keyID;
@@ -23,12 +25,12 @@ export class WebAuthnCreateResult implements IWebAuthnCreateResult
 
 interface IWebAuthnApproveResult {
     isValid: Valid,
-    signature ?: string
+    signature ?: WaSignature
  }
 
 export class WebAuthnApproveResult implements IWebAuthnApproveResult
 {
-    constructor (public isValid: Valid, public signature: string)
+    constructor (public isValid: Valid, public signature: WaSignature)
     {
         this.isValid = isValid;
         this.signature = signature;
@@ -77,9 +79,9 @@ interface IKeyPair {
     keyid: string;
 }
 
-export class KeyPair implements IKeyPair 
+export class KeyPair implements IKeyPair
 {
-    constructor (public key_name: string, public key: string, public wait_sec: number, public weight: number, public keyid: string) 
+    constructor (public key_name: string, public key: string, public wait_sec: number, public weight: number, public keyid: string)
     {
         this.key_name = key_name;
         this.key = key;

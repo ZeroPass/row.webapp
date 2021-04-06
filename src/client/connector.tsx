@@ -4,6 +4,7 @@ import { WaSignatureProvider } from './wasig';
 import {environment} from './constant';
 import * as assert from 'assert';
 import { env } from 'process';
+import {  WaSignature } from "../common/Key";
 
 export class Result{
     public isSucceeded : boolean;
@@ -188,7 +189,7 @@ export class Connector{
         }
     }
 
-    async approve(user: string, proposal_name: string, key_name: string, signature: string): Promise<Result> {
+    async approve(user: string, proposal_name: string, key_name: string, signature: WaSignature): Promise<Result> {
         try {
             const result = await this.api.transact(
                 {
