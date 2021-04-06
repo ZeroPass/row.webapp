@@ -566,7 +566,7 @@ function getLastKey(receivedKeys: any[]): KeyPair {
   }
 
 
-export async function propose(appState: AppState) {
+export async function propose(appState: AppState): Promise<boolean> {
   try {
     if (!appState.accountID)
       throw new Error(
@@ -667,11 +667,13 @@ export async function propose(appState: AppState) {
         appState.accountID +
         " has been added on chain"
     );
+    return true;
   } catch (e) {
     //show in console
     console.log(e);
     //show on UI
     appendMessage(appState, e);
+    return false;
   }
 }
 
