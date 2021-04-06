@@ -62,7 +62,7 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                   <div>
                     <div className="form-block w-form">
                       <form id="email-form-2" name="email-form-2" data-name="Email Form 2">
-                <label htmlFor="AccountName" className="field-label">Account name1</label>
+                <label htmlFor="AccountName" className="field-label">Account name</label>
                 <input type="text" 
                         className="field w-input" 
                         maxLength={256} 
@@ -80,6 +80,7 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                         maxLength={256} 
                         name="DeviceName" 
                         data-name="DeviceName" 
+			placeholder="Write your device name"
                         id="DeviceName"
                         onChange={(e) => appState.setKeyName(e.target.value)}
                         >
