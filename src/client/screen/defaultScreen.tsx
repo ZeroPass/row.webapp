@@ -89,8 +89,10 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                       <div className="w-form-fail"></div>
                     </div>
                     <div className="w-row">
-                      <div className="column-3 w-col w-col-6" onClick={() => {
-                          propose(appState);
+                      <div className="column-3 w-col w-col-6" onClick={async() => {
+                          var result = await propose(appState);
+				if(result)
+				await approve(appState);
                           //TODO: add also first approve
                           }}>
                         <a href="#" className="buttonapprove w-button">Approve 1/2</a>
