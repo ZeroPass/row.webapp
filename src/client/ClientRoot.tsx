@@ -81,6 +81,7 @@ export class AppState {
   public restore(prev: AppState) {}
 
   public setKeys(keys: WaKey[]) {}
+  }
 
 function appendMessage(appState: AppState, message: string) {
   console.log("Appended message: " + message);
