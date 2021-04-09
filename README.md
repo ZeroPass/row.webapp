@@ -1,6 +1,8 @@
 # ROW - Recoverable Online Wallets 
 
 ## Overview
+A clone of row.webapp. Not a fork because fork cannot be private.
+
 The ROW project is extended project of [EOSIO Webautn App](https://github.com/EOSIO/eosio-webauthn-example-app/). The code is running only on client side (browser). Server is used only to host a server for https connection. Webauthn protocol must be operated with https connection (security reason).
 
 
