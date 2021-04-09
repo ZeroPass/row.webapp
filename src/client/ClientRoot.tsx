@@ -1,10 +1,9 @@
-import { Api, JsonRpc, Serialize, Numeric} from "eosjs";
+import {Serialize} from "eosjs";
 import { ec } from 'elliptic';
-import { watch } from "fs";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
-import { PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey, WaSignature } from "../common/Key";
+import { PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey } from "../common/Key";
 import { Connector, Result } from "./connector";
 import { environment } from "./constant";
 import * as Tabs from "./component/Tabs";
@@ -16,10 +15,8 @@ import {
   Valid,
   WebAuthnCreateResult,
   WebAuthnApproveResult,
-  ProposalStruct,
   KeyPair
 } from "./structures";
-import { createSecretKey } from "crypto";
 const moment = require("moment");
 
 //'use strict'

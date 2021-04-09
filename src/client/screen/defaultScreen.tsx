@@ -1,48 +1,8 @@
 import * as React from "react";
 import {AppState, propose, approve, registerDevice, exec, cancel} from "../ClientRoot";
-import { makeStyles, Grid } from '@material-ui/core';
 require("./../app.css");
-//import graphic from '../screen/images/webclip.png';
 var slika = require("./images/wallet.svg");
-console.log("console.log(slika);");
-console.log(slika);
 
-function Controls({ appState }: { appState: AppState }) {
-  return (
-    <div className="control">
-      <button
-        onClick={() => {
-          propose(appState);
-        }}
-      >
-        Propose
-      </button>
-      <button
-        onClick={() => {
-          approve(appState);
-        }}
-      >
-        Approve
-      </button>
-      <button
-        onClick={() => {
-          exec(appState);
-        }}
-      >
-        Execute
-      </button>
-
-      <br />
-      <button
-        onClick={() => {
-          registerDevice(appState);
-        }}
-      >
-        Register device
-      </button>
-    </div>
-  );
-}
 
 export default class DefaultScreen extends React.Component<{ appState: AppState }> {
     pointer: number; 
