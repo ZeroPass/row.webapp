@@ -1,6 +1,6 @@
 import * as React from "react";
 import {AppState, propose, approve, registerDevice, exec, cancel} from "../ClientRoot";
-require("./../app.css");
+require("./css/app.css");
 var slika = require("./images/wallet.svg");
 
 

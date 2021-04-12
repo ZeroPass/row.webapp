@@ -23,7 +23,7 @@
         "src/**/*.ts",
         "node_modules/eosjs/**/*.d.ts",
         "node_modules/@types", 
-        "src/client/customUtils.ts",
+        "src/client/other/customUtils.ts",
         "src/client/screen/images/*",
         //"src/client/utils/customUtils.d.ts"    
 ]

@@ -4,8 +4,8 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
 import { PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey } from "../common/Key";
-import { Connector, Result } from "./connector";
-import { environment } from "./constant";
+import { Connector, Result } from "./connector/connector";
+import { environment } from "./other/constant";
 import * as Tabs from "./component/Tabs";
 import * as Tab from "./component/Tab";
 import DefaultScreen from "./screen/defaultScreen";
@@ -16,13 +16,12 @@ import {
   WebAuthnCreateResult,
   WebAuthnApproveResult,
   KeyPair
-} from "./structures";
+} from "./other/structures";
 const moment = require("moment");
 
 //'use strict'
 const cbor = require("cbor-web");
-require("./style.css");
-require("./app.css");
+require("./screen/css/app.css");
 require("./screen/css/normalize.css");
 require("./screen/css/webflow.css");
 require("./screen/css/row-6b2b63.webflow.css");
