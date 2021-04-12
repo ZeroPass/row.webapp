@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap');
+
+body {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+
+.client-root {
+    display: grid;
+    height: 100vh;
+    grid-template-columns: 180px 400px 400px auto;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+        "banner banner banner ."
+        "control keys keys ."
+        "balance message message ."
+        ". . . ."
+        "disclaimer disclaimer disclaimer .";
+}
+
+.control {
+    grid-area: control;
+    margin: 5px;
+    display: grid;
+    grid-template-columns: auto;
+    align-content: start;
+}
+
+.balance {
+    grid-area: balance;
+    margin: 5px;
+    display: grid;
+    grid-template-columns: auto;
+    align-content: start;
+}
+
+.accountId{
+    display: grid;
+}
+
+.keys {
+    margin: 5px;
+    grid-area: keys;
+    border: 1px solid;
+}
+
+.message {
+    grid-area: message;
+    border: 1px solid;
+}
+
+.banner {
+    grid-area: banner;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    margin: 5px;
+}
+
+.disclaimer {
+    font-size: 11px;
+    grid-area: disclaimer;
+    margin: 5px;
+}
+
+.tab-list {
+    border-bottom: 1px solid #ccc;
+    padding-left: 0;
+  }
+  
+  .tab-list-item {
+    display: inline-block;
+    list-style: none;
+    margin-bottom: -1px;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .tab-list-active {
+    background-color: white;
+    border: solid #ccc;
+    border-width: 1px 1px 0 1px;
+  }
+
+.item11 {
+    display: inline-block;
+    background-color:lightgoldenrodyellow;
+    width: 300px;
+    height: 300px;
+}
+
+.item12 {
+  display: inline-block;
+  background-color: bisque;
+  width: 300px;
+  height: 300px;
+}
+.item21 {
+  display: inline;
+  background-color: grey;
+}
+.item22 {
+  display: inline-block;
+  background-color: lightblue;
+}
+
+#item-1 {
+    background-color: red;
+}
+
+#item-2 {
+    background-color: blue;
+}
+
+#item-3 {
+    background-color: green;
+}
