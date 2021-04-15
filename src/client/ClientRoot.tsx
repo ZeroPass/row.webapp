@@ -3,13 +3,15 @@ import { ec } from 'elliptic';
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
-import { PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey } from "../common/Key";
+import { PublicKeyType, WaKey, WaPublicKey } from "../common/Key";
 import { Connector, Result } from "./connector/connector";
 import { environment } from "./other/constant";
 import * as Tabs from "./component/Tabs";
 import * as Tab from "./component/Tab";
 import DefaultScreen from "./screen/defaultScreen";
 import AdvancedScreen from "./screen/advancedScreen";
+import EncryptionDecode from "./cryptgraphy/encryption";
+import ConnectorEOS from "./connector/connectorEos";
 
 import {
   Valid,
@@ -39,13 +41,11 @@ export class AppState {
 
   public message = "";
   public balances = new Map<string, string>();
-  public connector: Connector;
   public paramAccount: string = null;
 
 
 
   constructor() {
-    this.connector = new Connector(environment.eosio.host);
     //get parameters from url
     this.getURLparams();
   }
@@ -77,13 +77,14 @@ export class AppState {
   public restore(prev: AppState) {}
 
   public setKeys(keys: WaKey[]) {}
-  }
 
-function appendMessage(appState: AppState, message: string) {
-  console.log("Appended message: " + message);
-  appState.message += message + "\n";
-  appState.clientRoot.forceUpdate();
-}
+  public appendMessage(message: string) {
+    console.log("Appended message: " + message);
+    this.message += message + "\n";
+    this.clientRoot.forceUpdate();
+  }  
+
+  }
 
 function connectSocket(appState: AppState) {
   appState.io = IoClient(socketUrl);
@@ -92,99 +93,12 @@ function connectSocket(appState: AppState) {
     if (appState.alive) connectSocket(appState);
   });
   appState.io.on("err", (error: string) => {
-    appendMessage(appState, error);
+    appState.appendMessage(error);
   });
   appState.io.on("keys", (keys: any) => {
     appState.setKeys(keys);
     appState.clientRoot.forceUpdate();
   });
-}
-
-interface AddKeyArgs {
-  rpid: string;
-  id: string;
-  attestationObject: string;
-  clientDataJSON: string;
-}
-
-const enum AttestationFlags {
-  userPresent = 0x01,
-  userVerified = 0x04,
-  attestedCredentialPresent = 0x40,
-  extensionDataPresent = 0x80,
-}
-
-function flagsToPresence(flags: number) {
-  if (flags & AttestationFlags.userVerified) return UserPresence.verified;
-  else if (flags & AttestationFlags.userPresent) return UserPresence.present;
-  else return UserPresence.none;
-}
-
-async function decodeKey(k: AddKeyArgs): Promise<WaKey> {
-  // todo: check RP ID hash
-  // todo: check signature
-  let unloadedModule = false;
-  if (unloadedModule) return;
-  //console.log(k);
-  // console.log(JSON.stringify(JSON.parse(textDecoder.decode(Serialize.hexToUint8Array(k.clientDataJSON))), null, 4));
-  const att = await (cbor as any).decodeFirst(
-    Serialize.hexToUint8Array(k.attestationObject)
-  );
-  //console.log(att);
-  //console.log(Serialize.arrayToHex(new Uint8Array(att.authData.buffer)));
-  const data = new DataView(att.authData.buffer, att.authData.byteOffset, att.authData.length);
-  let pos = 0;//30; // skip unknown
-  pos += 32; // RP ID hash
-  const flags = data.getUint8(pos++);
-  const signCount = data.getUint32(pos);
-  pos += 4;
-  if (!(flags & AttestationFlags.attestedCredentialPresent))
-    throw new Error("attestedCredentialPresent flag not set");
-  const aaguid = Serialize.arrayToHex(new Uint8Array(data.buffer, data.byteOffset + pos, 16));
-  pos += 16;
-  const credentialIdLength = data.getUint16(pos);
-  pos += 2;
-  const credentialId = new Uint8Array(data.buffer, data.byteOffset + pos, credentialIdLength);
-  pos += credentialIdLength;
-  if (Serialize.arrayToHex(credentialId) !== k.id)
-    throw new Error("Credential ID does not match");
-
-  const pubKey = await (cbor as any).decodeFirst(
-    new Uint8Array(data.buffer, data.byteOffset + pos)
-  );
-
-  var keyType = pubKey.get(1);
-  if (keyType !== 2 && keyType !== 3) throw new Error("Public key is not EC2 or RSA");
-  if (pubKey.get(3) !== -7 && pubKey.get(3) !== -257) throw new Error("Public key is not ES256 or RS256");
-
-  var key : PublicKey;
-  if (keyType == 2) {//ES256
-    if (pubKey.get(-1) !== 1) throw new Error("Public key has unsupported curve");
-    const x = pubKey.get(-2);
-    const y = pubKey.get(-3);
-    if (x.length !== 32 || y.length !== 32)
-      throw new Error("Public key has invalid X or Y size");
-
-    const serKey = new Serialize.SerialBuffer({
-      textEncoder: new TextEncoder(),
-      textDecoder: new TextDecoder(),
-    });
-
-    // ECC
-    serKey.push(y[31] & 1 ? 3 : 2);
-    serKey.pushArray(x);
-    key = [PublicKeyType.ecc, Serialize.arrayToHex(serKey.asUint8Array())]
-  }
-  else { // RS256
-    var mod = Serialize.arrayToHex(pubKey.get(-1));
-    var exp = Serialize.arrayToHex(pubKey.get(-2));
-    key = [PublicKeyType.rsa, new RsaPublicKey(mod, exp)]
-  }
-
-  return new WaKey(
-    Serialize.arrayToHex(credentialId),
-    new WaPublicKey(key, flagsToPresence(flags), k.rpid)
-  );
 }
 
 //Register device
@@ -256,9 +170,8 @@ export async function registerDevice(appState: AppState) {
         "registerDevice; WebAuthn process throws an error: " + wacr.isValid.desc
       );
 
-    //send data to the blockchain
-    var result: Result = await blockchainAddKey(
-      appState,
+    //send data to the 
+    var result: Result = await new ConnectorEOS(appState).addKey(
       appState.accountID,
       appState.keyName,
       wacr.keyID,
@@ -271,16 +184,14 @@ export async function registerDevice(appState: AppState) {
           result.desc
       );
 
-    appendMessage(
-      appState,
+    appState.appendMessage(
       "New key has been added to account " + appState.accountID + " on chain"
     );
   } catch (e) {
     //show in console
-
     console.log(e);
     //show on UIk
-    appendMessage(appState, e);
+    appState.appendMessage(e);
   }
 }
 
@@ -302,10 +213,7 @@ async function registerWA(
 
     if (!displayName) throw new Error("RegisterWA; displayName is undefined");
 
-    const textEncoder = new TextEncoder();
-    const textDecoder = new TextDecoder();
-
-    appendMessage(appState, "Signing wa...");
+    appState.appendMessage("Signing wa...");
     const rp = { id: rpId, name: rpName };
     const cred = await (navigator as any).credentials.create({
       publicKey: {
@@ -329,7 +237,8 @@ async function registerWA(
         challenge: challenge
       },
     });
-    var key: WaKey = await decodeKey({
+    //var decode: EncryptionDecode = new EncryptionDecode();
+    var key: WaKey = await new EncryptionDecode().decodeKey({
       rpid: rp.id,
       id: Serialize.arrayToHex(new Uint8Array(cred.rawId)),
       attestationObject: Serialize.arrayToHex(
@@ -385,7 +294,7 @@ async function approveWA(
     const textEncoder = new TextEncoder();
     const textDecoder = new TextDecoder();
 
-    appendMessage(appState, "Getting wa...");
+    appState.appendMessage("Getting wa...");
 
     const signBuf = new Serialize.SerialBuffer();
     //signBuf.pushArray(Serialize.hexToUint8Array(chainId));
@@ -482,75 +391,6 @@ async function approveWA(
     );
   }
 }
-function createLinkOnBlockExplorer(transactionID: string): string{
-  //block explorer
-  var BLOCK_EXPLORER = "https://local.bloks.io/account/eosio?nodeUrl=https%3A%2F%2F163.172.144.187%3A9899";
-  return BLOCK_EXPLORER + "/transaction/" + transactionID;
-}
-
-async function blockchainAddKey(
-  appState: AppState,
-  accountID: string,
-  keyName: string,
-  keyID: string,
-  pubKey: WaPublicKey,
-  weight: number = 1,
-  wait_sec: number = 0
-): Promise<Result> {
-  if (!keyName) throw new Error("blockchainAddKey; 'keyName' is not defined");
-
-  if (!keyID) throw new Error("blockchainAddKey; 'KeyID' is not defined");
-
-  if (!pubKey) throw new Error("blockchainAddKey; 'Key' is not defined");
-
-  if (weight < 1) throw new Error("blockchainAddKey; 'Key' invalid key weight");
-
-  if (wait_sec < 0) throw new Error("blockchainAddKey; 'Key' invalid key wait_sec");
-
-  const alphabet = ".12345abcdefghijklmnopqrstuvwxyz";
-  var KEY_STRUCT = {
-    key_name: keyName,
-    key: pubKey,
-    wait_sec: wait_sec,
-    weight: weight,
-    keyid: keyID,
-  };
-  const result = await appState.connector.addKey(accountID, KEY_STRUCT);
-  const isSucceeded = String(result.isSucceeded);
-  appendMessage(
-    appState,
-    `Is transaction succeeded: ${isSucceeded}, description: ${createLinkOnBlockExplorer(result.desc)}`
-  );
-  return result;
-}
-
-async function blockchainPropose(
-  appState: AppState,
-  accountID: string,
-  requested_approvals: string[],
-  trx: {}
-): Promise<Result> {
-  if (!accountID)
-    throw new Error("blockchainPropose; 'AccountID' is not defined");
-  if (!requested_approvals || requested_approvals.length == 0)
-    throw new Error("blockchainPropose; 'requested_approvals' is not defined");
-  if (!trx) throw new Error("blockchainPropose; 'trx' is not defined");
-  //if (!appState.proposalName)
-  //throw new Error("blockchainPropose; 'proposalName' is not defined");
-
-  const result = await appState.connector.propose(
-    accountID,
-    accountID,
-    requested_approvals,
-    trx
-  );
-  const isSucceeded = String(result.isSucceeded);
-  appendMessage(
-    appState,
-    `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
-  );
-  return result;
-}
 
 function createKeyArray(receivedKeys: any[]): Array<string> {
   if (receivedKeys.length == 0)
@@ -612,7 +452,7 @@ export async function propose(appState: AppState): Promise<boolean> {
       }
     ];
 
-    let seActions = await appState.connector.serializeTransaction( TEMP_RAW_TRANSACTION );
+    let seActions = await new ConnectorEOS(appState).serializeTransaction( TEMP_RAW_TRANSACTION );
     console.log(seActions[0].data);
 
     var TEMP_FIXED_TRANSACTION = {
@@ -641,7 +481,7 @@ export async function propose(appState: AppState): Promise<boolean> {
 
     console.log("Getting data from the chain");
 
-    var keys = await appState.connector.getTableRows(
+    var keys = await new ConnectorEOS(appState).getTableRows(
       environment.eosio.contract,
       appState.accountID,
       "authorities"
@@ -664,8 +504,7 @@ export async function propose(appState: AppState): Promise<boolean> {
       );
 
     //send data to the blockchain
-    var result: Result = await blockchainPropose(
-      appState,
+    var result: Result = await new ConnectorEOS(appState).propose(
       appState.accountID,
       keyArray,
       TEMP_FIXED_TRANSACTION
@@ -676,8 +515,7 @@ export async function propose(appState: AppState): Promise<boolean> {
         "Propose; Sending transaction to the server failed: " + result.desc
       );
 
-    appendMessage(
-      appState,
+      appState.appendMessage(
       "New proposal with account " +
         appState.accountID +
         " has been added on chain"
@@ -687,7 +525,7 @@ export async function propose(appState: AppState): Promise<boolean> {
     //show in console
     console.log(e);
     //show on UI
-    appendMessage(appState, e);
+    appState.appendMessage(e);
     return false;
   }
 }
@@ -710,8 +548,8 @@ export async function approve(appState: AppState): Promise<boolean> {
     }
 
     console.log("Getting data from the chain");
-    const proposal = await appState.connector.getProposal(appState.accountID, appState.accountID);
-    const authKey  = await appState.connector.getAuthKey(appState.accountID, appState.keyName);
+    const proposal = await new ConnectorEOS(appState).getProposal(appState.accountID, appState.accountID);
+    const authKey  = await new ConnectorEOS(appState).getAuthKey(appState.accountID, appState.keyName);
 
     //get/define the data
     const rpId = window.location.hostname;
@@ -731,64 +569,50 @@ export async function approve(appState: AppState): Promise<boolean> {
       Serialize.hexToUint8Array(proposal.packed_transaction)
     );
 
-    const result = await appState.connector.approve(
+    const result = await new ConnectorEOS(appState).approve(
       appState.accountID,
       appState.accountID,
       authKey.key_name,
       waresult.signature
     );
     const isSucceeded = String(result.isSucceeded);
-    appendMessage(
-      appState,
-      `Is transaction succeeded: ${isSucceeded}, description: ${createLinkOnBlockExplorer(result.desc)}`
-    );
-    return true;
+    return result.isSucceeded;
   }
   catch(e) {
     //show in console
     console.log(e);
     //show on UIk
-    appendMessage(appState, e);
+    appState.appendMessage(e);
     return false;
   }
 }
 
 export async function cancel(appState: AppState): Promise<boolean> {
   try {
-    appendMessage(appState, "Starting action: 'cancel'");
+    appState.appendMessage("Starting action: 'cancel'");
     if (!appState.accountID)
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
-    //else if (!appState.proposalName || appState.proposalName.length == 0) {
-    //  throw new Error(
-    //    'proposalName is not defined. Please fill the field "Proposal".'
-    //  );
-    //}
 
-    const result = await appState.connector.cancel(
+    const result = await new ConnectorEOS(appState).cancel(
       appState.accountID,
       appState.accountID,
     );
-    const isSucceeded = String(result.isSucceeded);
-    appendMessage(
-      appState,
-      `Is transaction succeeded: ${isSucceeded}, description: ${result.desc}`
-    );
-    return true;
+    return result.isSucceeded;
   }
   catch(e) {
     //show in console
     console.log(e);
     //show on UIk
-    appendMessage(appState, e);
+    appState.appendMessage(e);
     return false;
   }
 }
 
 export async function testwasig(appState: AppState): Promise<boolean> {
   try {
-    appendMessage(appState, "Starting action: 'testwasig'");
+    appState.appendMessage("Starting action: 'testwasig'");
     if (!appState.accountID)
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
@@ -865,36 +689,16 @@ export async function testwasig(appState: AppState): Promise<boolean> {
       );
 
     console.log(wacr.key.key, waresult.signature);
-    const result = await appState.connector.api.transact(
-    {
-        actions: [{
-            account: environment.eosio.contract,
-            name: 'testwasig',
-            data: {
-              pubkey: wacr.key,
-              signed_hash: Serialize.arrayToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', testDataToSign))),
-              sig: waresult.signature,
-            },
-            authorization: [{
-                actor: username,
-                permission: 'active', //'wamsig'
-            }],
-        }],
-    }, {
-        blocksBehind: 3,
-        expireSeconds: 30,
-    });
-    console.log(result);
-    appendMessage(
-        appState,
-        `Is transaction succeeded: True, description: ${result.transaction_id}`
-    );
-
-    return true;
+    const result = await new ConnectorEOS(appState).testwasig(
+        appState.accountID, 
+        wacr.key,
+        Serialize.arrayToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', testDataToSign))),
+        waresult.signature);
+    return result.isSucceeded;
   }
   catch(e) {
     console.log(e);
-    appendMessage(appState, e);
+    appState.appendMessage(e);
     return false;
   }
 }
@@ -905,60 +709,18 @@ export async function exec(appState: AppState): Promise<boolean> {
       throw new Error(
         'AccountID is not defined. Please fill the field "AccountID".'
       );
-    //else if (!appState.proposalName || appState.proposalName.length == 0) {
-    //  throw new Error(
-    //    'proposalName is not defined. Please fill the field "Proposal".'
-    //  );
-    //}
 
-    const result = await appState.connector.api.transact(
-    {
-        actions: [{
-            account: environment.eosio.contract,
-            name: 'exec',
-            data: {
-                account: appState.accountID,
-                proposal_name: appState.accountID,
-            },
-            authorization: [{
-                actor: appState.accountID,
-                permission: 'active', //'wamsig'
-            }],
-        }],
-    }, {
-        blocksBehind: 3,
-        expireSeconds: 30,
-    });
-    console.log(result);
-    //return new Result(true, result.transaction_id);
-    const isSucceeded = String(result.isSucceeded);
-    appendMessage(
-      appState,
-      `Proposed transaction has been executed:  ${createLinkOnBlockExplorer(result.transaction_id)}`
-    );
-    return true;
+    const result = await new ConnectorEOS(appState).exec(appState.accountID, appState.accountID);
+    return result.isSucceeded;
   }
   catch(e) {
     //show in console
     console.log(e);
     //show on UIk
-    appendMessage(appState, e);
+    appState.appendMessage(e);
     return false;
   }
 }
-
-async function getTable(appState: AppState) {
-  const TEMP_FIXED_USER: string = appState.accountID;
-
-  const result = await appState.connector.getTableRows(
-    "eosio.token",
-    TEMP_FIXED_USER,
-    "accounts"
-  );
-  if (Array.isArray(result)) appendMessage(appState, result.toString());
-  else appendMessage(appState, result.desc);
-}
-
 
 class ClientRoot extends React.Component<{ appState: AppState }> {
   public render() {

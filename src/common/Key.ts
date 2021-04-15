@@ -1,5 +1,3 @@
-import { stringToPublicKey } from "eosjs/dist/eosjs-numeric";
-
 export const enum UserPresence {
     none = 0,
     present = 1,

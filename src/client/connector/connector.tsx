@@ -4,7 +4,7 @@ import { WaSignatureProvider } from '../cryptgraphy/wasig';
 import {environment} from '../other/constant';
 import * as assert from 'assert';
 import { env } from 'process';
-import {  WaSignature } from "../../common/Key";
+import {  WaSignature, WaPublicKey } from "../../common/Key";
 
 export class Result{
     public isSucceeded : boolean;
@@ -38,10 +38,6 @@ export class Connector{
         this.apiFIDO = new Api({ rpc: this.rpc, signatureProvider: this.sigprov });
     }
 
-    serialize(data: string): string{
-        //return serizalized data
-        return "";// this.api.serializeTransaction(data);
-    }
     async checkServer(): Promise<Result>{
         try{
             const result = await this.rpc.get_info();
@@ -94,19 +90,26 @@ export class Connector{
     }
 
     async getProposal(account: string, proposalName: string) : Promise<any> {
-        var proposals = await this.getTableRows(environment.eosio.contract, account,"proposals");
-        if (!proposals.isSucceeded) {
-            throw new Error("Getting proposals from chain failed with error: " + proposals.desc);
-        }
-        for (const p of proposals.desc) {
-            if (p.proposal_name == proposalName) {
-                return p;
+        try
+        {
+            var proposals = await this.getTableRows(environment.eosio.contract, account,"proposals");
+            if (!proposals.isSucceeded) {
+                throw new Error("Getting proposals from chain failed with error: " + proposals.desc);
             }
+            for (const p of proposals.desc) {
+                if (p.proposal_name == proposalName) {
+                    return p;
+                }
+            }
+            throw new Error("No proposal named '" + proposalName + "' is stored under account '" + account + "'");
         }
-        throw new Error("No proposal named '" + proposalName + "' is stored under account '" + account + "'");
+        catch(e){
+            throw new Error("Exception thrown in 'connector:getProposal':" + e);
+        }
     }
 
     async getAuthKey(account: string, keyName: string) : Promise<any> {
+     try{
         var auths = await this.getTableRows(environment.eosio.contract, account,"authorities");
         if (!auths.isSucceeded) {
             throw new Error("Getting authKey from chain failed with error: " + auths.desc);
@@ -118,6 +121,11 @@ export class Connector{
         }
         throw new Error("No authorization key named '" + keyName + "' is stored under authorities of account '" + account + "'");
     }
+    catch(e){
+        throw new Error("Exception thrown in 'connector:getAuthKey':" + e);
+    }
+    }
+
 
     async addKey(user: string, keyStruct: {}): Promise<Result> {
         try {
@@ -248,7 +256,7 @@ export class Connector{
             console.log(result);
             return new Result(true, result.transaction_id);
         } catch (e) {
-            //reutnr RPC error
+            //return RPC error
             if (e instanceof RpcError){
                 console.log("Connector:cancel; RPC error: " + JSON.stringify(e.json, null, 2));
                 return new Result(false,JSON.stringify(e.json, null, 2));
@@ -258,4 +266,91 @@ export class Connector{
             return new Result(false, e);
         }
     }
+
+    async exec(accountID: string, proposal_name: string): Promise<Result> {
+        try {
+            if (!accountID)
+              throw new Error(
+                'AccountID is not defined. Please fill the field "AccountID".'
+              );
+              if (!proposal_name)
+              throw new Error(
+                'proposal_name is not defined.'
+              );
+        
+            const result = await this.api.transact(
+            {
+                actions: [{
+                    account: environment.eosio.contract,
+                    name: 'exec',
+                    data: {
+                        account: accountID,
+                        proposal_name: proposal_name,
+                    },
+                    authorization: [{
+                        actor: accountID,
+                        permission: 'active', //'wamsig'
+                    }],
+                }],
+            }, {
+                blocksBehind: 3,
+                expireSeconds: 30,
+            });
+            return new Result(true, result.transaction_id);
+          }
+          catch(e) {
+            //return RPC error
+            if (e instanceof RpcError){
+                console.log("Connector:cancel; RPC error: " + JSON.stringify(e.json, null, 2));
+                return new Result(false,JSON.stringify(e.json, null, 2));
+            }
+            //return basic result
+            console.log("Connector:cancel; Error: " + e);
+            return new Result(false, e);
+          }
+        }
+
+        async testwasig(accountID: string, pubkey: WaPublicKey, signed_hash: string, sig: WaSignature): Promise<Result> {
+            try {
+                if (!accountID)
+                  throw new Error('accountID is not defined.');
+                if (!pubkey)
+                  throw new Error('pubkey is not defined.');
+                if (!signed_hash)
+                  throw new Error('signed_hash is not defined.');
+                if (!sig)
+                  throw new Error('sig is not defined.');
+            
+                const result = await this.api.transact(
+                    {
+                        actions: [{
+                            account: environment.eosio.contract,
+                            name: 'testwasig',
+                            data: {
+                              pubkey: pubkey,
+                              signed_hash: signed_hash,
+                              sig:sig,
+                            },
+                            authorization: [{
+                                actor: accountID,
+                                permission: 'active', //'wamsig'
+                            }],
+                        }],
+                    }, {
+                        blocksBehind: 3,
+                        expireSeconds: 30,
+                    });
+                return new Result(true, result.transaction_id);
+              }
+              catch(e) {
+                //return RPC error
+                if (e instanceof RpcError){
+                    console.log("Connector:cancel; RPC error: " + JSON.stringify(e.json, null, 2));
+                    return new Result(false,JSON.stringify(e.json, null, 2));
+                }
+                //return basic result
+                console.log("Connector:cancel; Error: " + e);
+                return new Result(false, e);
+              }
+        }
 }
