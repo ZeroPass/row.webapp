@@ -668,7 +668,7 @@ export async function testwasig(appState: AppState): Promise<boolean> {
       rpName,
       username,
       displayName,
-      {key: wacr.wa_pubkey, keyid: wacr.keyID},
+      new AuthKey('testkey', wacr.wa_pubkey, 0, 1, wacr.keyID),
       testDataToSign
     );
     if (!waresult.getValidation())
