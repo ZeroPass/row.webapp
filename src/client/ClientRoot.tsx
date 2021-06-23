@@ -17,7 +17,7 @@ import {
   Valid,
   WebAuthnCreateResult,
   WebAuthnApproveResult,
-  KeyPair
+  SerializedAuthKey
 } from "./other/structures";
 const moment = require("moment");
 
@@ -175,7 +175,7 @@ export async function registerDevice(appState: AppState) {
       appState.accountID,
       appState.keyName,
       wacr.keyID,
-      wacr.key
+      wacr.wa_pubkey
     );
 
     if (!result.isSucceeded)
@@ -252,7 +252,7 @@ async function registerWA(
     return new WebAuthnCreateResult(
       new Valid(true, "everything is fine"),
       key.credentialId,
-      key.key
+      key.wa_pubkey
     );
   } catch (e) {
     return new WebAuthnCreateResult(
@@ -269,7 +269,7 @@ async function approveWA(
   rpName: string,
   username: string,
   displayName: string,
-  key: any,
+  key: SerializedAuthKey,
   packedTransaction: Uint8Array,
   userId: Uint8Array = new Uint8Array(16)
 ): Promise<WebAuthnApproveResult> {
@@ -284,7 +284,7 @@ async function approveWA(
 
     if (!key) throw new Error("ApproveWA; key is undefined");
 
-    if (!Array.isArray(key.key.key) || key.key.key.length !== 2 || typeof key.key.key[0] !== 'string') {
+    if (!Array.isArray(key.wa_pubkey.pubkey) || key.wa_pubkey.pubkey.length !== 2 || typeof key.wa_pubkey.pubkey[0] !== 'string') {
         throw new Error('Invalid WA public key');
     }
 
@@ -318,10 +318,10 @@ async function approveWA(
     });
 
     var signature: string;
-    if (key.key.key[0] == PublicKeyType.ecc)
+    if (key.wa_pubkey.pubkey[0] == PublicKeyType.ecc)
     {
       const e = new ec('p256') as any;
-      const pubKey = e.keyFromPublic(Serialize.hexToUint8Array(key.key.key[1])).getPublic();
+      const pubKey = e.keyFromPublic(Serialize.hexToUint8Array(key.wa_pubkey.pubkey[1])).getPublic();
 
       const fixup = (x: Uint8Array) => {
           const a = Array.from(x);
@@ -366,7 +366,7 @@ async function approveWA(
       sigData.pushArray(s);
       signature = Serialize.arrayToHex(sigData.asUint8Array());
     }
-    else if (key.key.key[0] == PublicKeyType.rsa) {
+    else if (key.wa_pubkey.pubkey[0] == PublicKeyType.rsa) {
       signature = Serialize.arrayToHex(new Uint8Array(assertion.response.signature));
     }
     else {
@@ -405,14 +405,14 @@ function createKeyArray(receivedKeys: any[]): Array<string> {
   return keyArray;
 }
 
-function getLastKey(receivedKeys: any[]): KeyPair {
+function getLastKey(receivedKeys: any[]): SerializedAuthKey {
     if (receivedKeys[0].length == 0)
       throw new Error(
         "No keys under current account. Please add key to your account to use current action: "
       );
     var lastElement = receivedKeys[0].keys.length - 1;
     var element = receivedKeys[0].keys[lastElement];
-    return new KeyPair(element.key_name, element.key, element.wait_sec, element.weight, element.keyid);
+    return new SerializedAuthKey(element.key_name, element.wa_pubkey, element.wait_sec, element.weight, element.keyid);
   }
 
 

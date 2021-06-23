@@ -71,20 +71,33 @@ export class ProposalStruct implements IProposalStruct
     }
 }
 
-interface IKeyPair {
+export class SerializedWaKey {
+    pubkey: [string, string];
+    user_presence: UserPresence;
+    rpid: string;
+
+    constructor (pubkey: [string, string], user_presence: UserPresence, rpid: string)
+    {
+        this.pubkey = pubkey;
+        this.user_presence = user_presence;
+        this.rpid = rpid;
+    }
+}
+
+interface ISerializedAuthKey {
     key_name: string;
-    key: string;
+    wa_pubkey: SerializedWaKey;
     wait_sec: number;
     weight: number;
     keyid: string;
 }
 
-export class KeyPair implements IKeyPair
+export class SerializedAuthKey implements ISerializedAuthKey
 {
-    constructor (public key_name: string, public key: string, public wait_sec: number, public weight: number, public keyid: string)
+    constructor (public key_name: string, public wa_pubkey: SerializedWaKey, public wait_sec: number, public weight: number, public keyid: string)
     {
         this.key_name = key_name;
-        this.key = key;
+        this.wa_pubkey = wa_pubkey;
         this.wait_sec = wait_sec;
         this.weight = weight;
         this.keyid = keyid;
