@@ -3,7 +3,7 @@ import { ec } from 'elliptic';
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
-import { AuthKey, PublicKeyType, WaKey, WaPublicKey } from "../common/Key";
+import { AuthKey, PublicKeyType, WaKey } from "../common/Key";
 import { Result } from "./connector/connector";
 import * as Tabs from "./component/Tabs";
 import * as Tab from "./component/Tab";
@@ -282,10 +282,6 @@ async function approveWA(
 
     if (!key) throw new Error("ApproveWA; key is undefined");
 
-    if (!Array.isArray(key.wa_pubkey.pubkey) || key.wa_pubkey.pubkey.length !== 2 || typeof key.wa_pubkey.pubkey[0] !== 'string') {
-        throw new Error('Invalid WA public key');
-    }
-
     if (!packedTransaction)
       throw new Error("ApproveWA; packedTransaction is undefined");
 
@@ -316,10 +312,10 @@ async function approveWA(
     });
 
     var signature: string;
-    if (key.wa_pubkey.pubkey[0] == PublicKeyType.ecc)
+    if (key.wa_pubkey.pubkey.type == PublicKeyType.ecc)
     {
       const e = new ec('p256') as any;
-      const pubKey = e.keyFromPublic(Serialize.hexToUint8Array(key.wa_pubkey.pubkey[1])).getPublic();
+      const pubKey = e.keyFromPublic(Serialize.hexToUint8Array(key.wa_pubkey.pubkey.key)).getPublic();
 
       const fixup = (x: Uint8Array) => {
           const a = Array.from(x);
@@ -364,7 +360,7 @@ async function approveWA(
       sigData.pushArray(s);
       signature = Serialize.arrayToHex(sigData.asUint8Array());
     }
-    else if (key.wa_pubkey.pubkey[0] == PublicKeyType.rsa) {
+    else if (key.wa_pubkey.pubkey.type == PublicKeyType.rsa) {
       signature = Serialize.arrayToHex(new Uint8Array(assertion.response.signature));
     }
     else {
@@ -676,7 +672,7 @@ export async function testwasig(appState: AppState): Promise<boolean> {
         "testwasig; approveWA returned an error: " + waresult.isValid.desc
       );
 
-    console.log(wacr.wa_pubkey.pubkey, waresult.signature);
+    console.log(wacr.wa_pubkey.pubkey.asVariant(), waresult.signature);
     const result = await new ConnectorEOS(appState).testwasig(
         appState.accountID, 
         wacr.wa_pubkey,

@@ -1,4 +1,4 @@
-import {  PublicKey, UserPresence, PublicKeyType, RsaPublicKey, WaKey, WaPublicKey } from "../../common/Key";
+import {  PublicKey, UserPresence, EccPublicKey, RsaPublicKey, WaKey, WaPublicKey } from "../../common/Key";
 import { Serialize } from "eosjs";
 const cbor = require("cbor-web");
 
@@ -78,12 +78,12 @@ export default class EncryptionDecode  {
           // ECC
           serKey.push(y[31] & 1 ? 3 : 2);
           serKey.pushArray(x);
-          key = [PublicKeyType.ecc, Serialize.arrayToHex(serKey.asUint8Array())]
+          key = new EccPublicKey(Serialize.arrayToHex(serKey.asUint8Array()));
         }
         else { // RS256
           var mod = Serialize.arrayToHex(pubKey.get(-1));
           var exp = Serialize.arrayToHex(pubKey.get(-2));
-          key = [PublicKeyType.rsa, new RsaPublicKey(mod, exp)]
+          key = new RsaPublicKey(mod, exp);
         }
       
         return new WaKey(

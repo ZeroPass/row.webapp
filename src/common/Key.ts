@@ -9,19 +9,44 @@ export const enum PublicKeyType {
     rsa = "rsa_public_key"
 }
 
-export class RsaPublicKey {
-    modulus: string;
-    exponent: string;
+abstract class IPublicKey {
+    readonly type: PublicKeyType;
+    asVariant() : Array<any> {
+        return [this.type, this.__serialize_key()];
+    }
 
-    constructor (modulus: string, exponent: string)
-    {
-        this.modulus = modulus;
-        this.exponent = exponent;
+    protected abstract __serialize_key(): any;
+}
+
+export class EccPublicKey extends IPublicKey {
+    readonly type = PublicKeyType.ecc;
+    key: string; // hex encoded ECC public key
+    constructor(key: string) {
+        super();
+        this.key = key;
+    }
+
+    protected __serialize_key(): any {
+        return this.key;
     }
 }
 
-export type EccPublicKey = string;
-export type PublicKey = any[]; // variant [string - PublicKeyType, string - ecc public key | RsaPublicKey]
+export class RsaPublicKey extends IPublicKey {
+    readonly type = PublicKeyType.rsa;
+    modulus: string;
+    exponent: string;
+    constructor(modulus: string, exponent: string) {
+        super();
+        this.modulus = modulus;
+        this.exponent = exponent;
+    }
+
+    protected __serialize_key(): any {
+        return {"modulus": this.modulus, "exponent": this.exponent};
+    }
+}
+
+export type PublicKey = EccPublicKey | RsaPublicKey;
 
 export class WaPublicKey {
     pubkey: PublicKey;
@@ -34,6 +59,29 @@ export class WaPublicKey {
         this.user_presence = user_presence;
         this.rpid = rpid;
     }
+
+    serialize(): any {
+        return {
+            "pubkey": this.pubkey.asVariant(),
+            "user_presence": this.user_presence,
+            "rpid": this.rpid
+        }
+    }
+}
+
+export function deserializeWaPublicKey(serKey: any) : WaPublicKey{
+    var key;
+    switch(serKey.pubkey[0]){
+        case PublicKeyType.ecc:
+            key = new EccPublicKey(serKey.pubkey[1]);
+            break;
+        case PublicKeyType.rsa:
+            key = new RsaPublicKey(serKey.pubkey[1].modulus,serKey.pubkey[1].exponent);
+            break;
+        default:
+            throw Error("Cannot deserialize WaPublicKey, unknown public key type");
+    }
+    return new WaPublicKey(key, serKey.user_presence, serKey.rpid)
 }
 
 export class WaKey {

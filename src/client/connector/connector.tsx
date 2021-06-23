@@ -3,7 +3,7 @@ const { JsSignatureProvider } = require('eosjs/dist/eosjs-jssig');
 import { WaSignatureProvider } from '../cryptgraphy/wasig';
 import {environment} from '../other/constant';
 import * as assert from 'assert';
-import {  WaSignature, WaPublicKey, AuthKey } from "../../common/Key";
+import {  deserializeWaPublicKey, WaSignature, WaPublicKey, AuthKey } from "../../common/Key";
 
 export class Result{
     public isSucceeded : boolean;
@@ -129,14 +129,17 @@ export class Connector{
         var keys = await this.getAuthKeys(account);
         for (const k of keys) {
             if (k.key_name == keyName) {
+                k.wa_pubkey = deserializeWaPublicKey(k.wa_pubkey);
                 return k;
             }
         }
         throw new Error("No authorization key named '" + keyName + "' is stored under authorities of account '" + account + "'");
     }
 
-    async addKey(user: string, keyStruct: {}): Promise<Result> {
+    async addKey(user: string, authKey: AuthKey): Promise<Result> {
         try {
+
+            authKey.wa_pubkey = authKey.wa_pubkey.serialize();
             const result = await this.api.transact(
                 {
                     actions: [{
@@ -144,7 +147,7 @@ export class Connector{
                         name: 'addkey',
                         data: {
                             account: user,
-                            key: keyStruct
+                            key: authKey
                         },
                         authorization: [{
                             actor: user,
@@ -335,7 +338,7 @@ export class Connector{
                             account: environment.eosio.contract,
                             name: 'testwasig',
                             data: {
-                              pubkey: pubkey,
+                              pubkey: pubkey.serialize(),
                               signed_hash: signed_hash,
                               sig:sig,
                             },

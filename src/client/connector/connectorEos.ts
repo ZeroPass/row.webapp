@@ -36,14 +36,8 @@ export default class ConnectorEos {
         if (wait_sec < 0) throw new Error("blockchainAddKey; 'Key' invalid key wait_sec");
       
         const alphabet = ".12345abcdefghijklmnopqrstuvwxyz";
-        var KEY_STRUCT = {
-          key_name: keyName,
-          key: pubKey,
-          wait_sec: wait_sec,
-          weight: weight,
-          keyid: keyID,
-        };
-        const result = await this.connector.addKey(accountID, KEY_STRUCT);
+        const authKey = new AuthKey(keyName, pubKey, wait_sec, weight, keyID);
+        const result = await this.connector.addKey(accountID, authKey);
         const isSucceeded = String(result.isSucceeded);
         this.appState.appendMessage(
           `Is transaction succeeded: ${isSucceeded}, description: ${ConnectorEos.createLinkOnBlockExplorer(result.desc)}`
