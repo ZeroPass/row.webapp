@@ -567,6 +567,11 @@ export async function approve(appState: AppState): Promise<boolean> {
       Serialize.hexToUint8Array(proposal.packed_transaction)
     );
 
+    if (!waresult.getValidation())
+      throw new Error(
+        "testwasig; approveWA returned an error: " + waresult.isValid.desc
+      );
+
     const result = await new ConnectorEOS(appState).approve(
       appState.accountID,
       appState.accountID,
