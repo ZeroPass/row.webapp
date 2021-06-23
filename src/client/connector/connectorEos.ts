@@ -1,8 +1,7 @@
 import { AppState } from "../ClientRoot";
 import { Result, Connector } from "./connector";
 import { environment } from "./../other/constant";
-import { PublicKeyType, WaKey, WaPublicKey, WaSignature } from "../../common/Key";
-import { SerializedAuthKey } from "../other/structures";
+import {  AuthKey, WaPublicKey, WaSignature } from "../../common/Key";
 
 
 export default class ConnectorEos {
@@ -63,11 +62,11 @@ export default class ConnectorEos {
       return this.connector.getProposal(account, proposalName);
     }
 
-    async getAuthKeys(account: string) : Promise<Array<SerializedAuthKey>> {
+    async getAuthKeys(account: string) : Promise<Array<AuthKey>> {
       return this.connector.getAuthKeys(account);
     }
 
-    async getAuthKey(account: string, keyName: string) : Promise<SerializedAuthKey> {
+    async getAuthKey(account: string, keyName: string) : Promise<AuthKey> {
       return this.connector.getAuthKey(account, keyName);
     }
 

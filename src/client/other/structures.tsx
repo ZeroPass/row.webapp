@@ -1,4 +1,4 @@
-import { UserPresence, WaPublicKey, WaSignature } from "../../common/Key";
+import { WaPublicKey, WaSignature } from "../../common/Key";
 
 interface IWebAuthnCreateResult {
 
@@ -68,38 +68,5 @@ export class ProposalStruct implements IProposalStruct
     {
         this.proposal_name = proposal_name;
         this.data = data;
-    }
-}
-
-export class SerializedWaKey {
-    pubkey: [string, string];
-    user_presence: UserPresence;
-    rpid: string;
-
-    constructor (pubkey: [string, string], user_presence: UserPresence, rpid: string)
-    {
-        this.pubkey = pubkey;
-        this.user_presence = user_presence;
-        this.rpid = rpid;
-    }
-}
-
-interface ISerializedAuthKey {
-    key_name: string;
-    wa_pubkey: SerializedWaKey;
-    wait_sec: number;
-    weight: number;
-    keyid: string;
-}
-
-export class SerializedAuthKey implements ISerializedAuthKey
-{
-    constructor (public key_name: string, public wa_pubkey: SerializedWaKey, public wait_sec: number, public weight: number, public keyid: string)
-    {
-        this.key_name = key_name;
-        this.wa_pubkey = wa_pubkey;
-        this.wait_sec = wait_sec;
-        this.weight = weight;
-        this.keyid = keyid;
     }
 }

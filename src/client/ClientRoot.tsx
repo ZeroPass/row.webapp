@@ -3,9 +3,8 @@ import { ec } from 'elliptic';
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
-import { PublicKeyType, WaKey, WaPublicKey } from "../common/Key";
-import { Connector, Result } from "./connector/connector";
-import { environment } from "./other/constant";
+import { AuthKey, PublicKeyType, WaKey, WaPublicKey } from "../common/Key";
+import { Result } from "./connector/connector";
 import * as Tabs from "./component/Tabs";
 import * as Tab from "./component/Tab";
 import DefaultScreen from "./screen/defaultScreen";
@@ -16,8 +15,7 @@ import ConnectorEOS from "./connector/connectorEos";
 import {
   Valid,
   WebAuthnCreateResult,
-  WebAuthnApproveResult,
-  SerializedAuthKey
+  WebAuthnApproveResult
 } from "./other/structures";
 const moment = require("moment");
 
@@ -269,7 +267,7 @@ async function approveWA(
   rpName: string,
   username: string,
   displayName: string,
-  key: SerializedAuthKey,
+  key: AuthKey,
   packedTransaction: Uint8Array,
   userId: Uint8Array = new Uint8Array(16)
 ): Promise<WebAuthnApproveResult> {
@@ -392,7 +390,7 @@ async function approveWA(
   }
 }
 
-function createKeyArray(receivedKeys: any[]): Array<string> {
+function createKeyArray(receivedKeys: Array<AuthKey>): Array<string> {
   if (receivedKeys.length == 0)
     throw new Error(
       "No keys under current account. Please add key to your account to use current action: "
@@ -405,14 +403,14 @@ function createKeyArray(receivedKeys: any[]): Array<string> {
   return keyArray;
 }
 
-function getLastKey(receivedKeys: any[]): SerializedAuthKey {
+function getLastKey(receivedKeys: any[]): AuthKey {
     if (receivedKeys[0].length == 0)
       throw new Error(
         "No keys under current account. Please add key to your account to use current action: "
       );
     var lastElement = receivedKeys[0].keys.length - 1;
     var element = receivedKeys[0].keys[lastElement];
-    return new SerializedAuthKey(element.key_name, element.wa_pubkey, element.wait_sec, element.weight, element.keyid);
+    return new AuthKey(element.key_name, element.wa_pubkey, element.wait_sec, element.weight, element.keyid);
   }
 
 

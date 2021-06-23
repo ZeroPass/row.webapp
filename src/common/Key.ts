@@ -47,6 +47,24 @@ export class WaKey {
     }
 }
 
+export class AuthKey
+{
+    key_name: string;
+    wa_pubkey: WaPublicKey;
+    wait_sec: number;
+    weight: number;
+    keyid: string;
+
+    constructor (key_name: string, wa_pubkey: WaPublicKey, wait_sec: number, weight: number, keyid: string)
+    {
+        this.key_name = key_name;
+        this.wa_pubkey = wa_pubkey;
+        this.wait_sec = wait_sec;
+        this.weight = weight;
+        this.keyid = keyid;
+    }
+}
+
 export interface WaSignature {
     signature: string;
     auth_data: string;

@@ -3,9 +3,7 @@ const { JsSignatureProvider } = require('eosjs/dist/eosjs-jssig');
 import { WaSignatureProvider } from '../cryptgraphy/wasig';
 import {environment} from '../other/constant';
 import * as assert from 'assert';
-import { env } from 'process';
-import {  WaSignature, WaPublicKey } from "../../common/Key";
-import { SerializedAuthKey } from '../other/structures';
+import {  WaSignature, WaPublicKey, AuthKey } from "../../common/Key";
 
 export class Result{
     public isSucceeded : boolean;
@@ -109,7 +107,7 @@ export class Connector{
         }
     }
 
-    async getAuthKeys(account: string) : Promise<Array<SerializedAuthKey>> {
+    async getAuthKeys(account: string) : Promise<Array<AuthKey>> {
         try{
            var auths = await this.getTableRows(environment.eosio.contract, account,"authorities");
            if (!auths.isSucceeded) {
@@ -127,7 +125,7 @@ export class Connector{
        }
    }
 
-    async getAuthKey(account: string, keyName: string) : Promise<SerializedAuthKey> {
+    async getAuthKey(account: string, keyName: string) : Promise<AuthKey> {
         var keys = await this.getAuthKeys(account);
         for (const k of keys) {
             if (k.key_name == keyName) {
