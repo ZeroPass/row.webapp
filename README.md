@@ -43,16 +43,6 @@ Install/setup repository
 
 `yarn setup`
 
-Update eosjs library (because of [bug](https://github.com/EOSIO/eosjs/issues/853))
-
- *In file eosjs/dist/eosjs-numerics.js; function 'stringToSignature' add new else if:  *
- 
-```
-else if (s.substr(0, 7) === 'SIG_WA_') {
-        return stringToKey(s.substr(7), KeyType.wa, 0, 'WA');
-    }
-```
-
 #### HTTPS proxy via self-signed localhost certificate:
 
 The following describes one way of placing an HTTPS proxy in front of the server via the program `haproxy` along with a self-signed certificate that you instruct your browser to trust.
