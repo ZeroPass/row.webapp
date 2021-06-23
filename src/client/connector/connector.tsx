@@ -5,6 +5,7 @@ import {environment} from '../other/constant';
 import * as assert from 'assert';
 import { env } from 'process';
 import {  WaSignature, WaPublicKey } from "../../common/Key";
+import { SerializedAuthKey } from '../other/structures';
 
 export class Result{
     public isSucceeded : boolean;
@@ -108,24 +109,33 @@ export class Connector{
         }
     }
 
-    async getAuthKey(account: string, keyName: string) : Promise<any> {
-     try{
-        var auths = await this.getTableRows(environment.eosio.contract, account,"authorities");
-        if (!auths.isSucceeded) {
-            throw new Error("Getting authKey from chain failed with error: " + auths.desc);
-        }
-        for (const k of auths.desc[0].keys) {
+    async getAuthKeys(account: string) : Promise<Array<SerializedAuthKey>> {
+        try{
+           var auths = await this.getTableRows(environment.eosio.contract, account,"authorities");
+           if (!auths.isSucceeded) {
+               throw new Error("Failed to get the list of authKeys from chain! error: " + auths.desc);
+           }
+           if (auths.desc.length == 0) {
+              throw new Error(
+                "No authority entry on chain for the account. Please add key and then make new process"
+              );
+           }
+           return auths.desc[0].keys;
+       }
+       catch(e){
+           throw new Error("Exception thrown in 'connector:getAuthKeys':" + e);
+       }
+   }
+
+    async getAuthKey(account: string, keyName: string) : Promise<SerializedAuthKey> {
+        var keys = await this.getAuthKeys(account);
+        for (const k of keys) {
             if (k.key_name == keyName) {
                 return k;
             }
         }
         throw new Error("No authorization key named '" + keyName + "' is stored under authorities of account '" + account + "'");
     }
-    catch(e){
-        throw new Error("Exception thrown in 'connector:getAuthKey':" + e);
-    }
-    }
-
 
     async addKey(user: string, keyStruct: {}): Promise<Result> {
         try {
