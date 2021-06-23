@@ -1,20 +1,20 @@
-import { WaPublicKey, WaSignature } from "../../common/Key";
+import { UserPresence, WaPublicKey, WaSignature } from "../../common/Key";
 
 interface IWebAuthnCreateResult {
 
 
     isValid: Valid,
     keyID ?: string,
-    key ?: WaPublicKey
+    wa_pubkey ?: WaPublicKey
  }
 
 export class WebAuthnCreateResult implements IWebAuthnCreateResult
 {
-    constructor (public isValid: Valid, public keyID: string, public key: WaPublicKey)
+    constructor (public isValid: Valid, public keyID: string, public wa_pubkey: WaPublicKey)
     {
         this.isValid = isValid;
         this.keyID = keyID;
-        this.key = key;
+        this.wa_pubkey = wa_pubkey;
     }
 
     getValidation(): boolean{

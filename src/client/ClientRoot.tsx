@@ -680,7 +680,7 @@ export async function testwasig(appState: AppState): Promise<boolean> {
       rpName,
       username,
       displayName,
-      {key: wacr.key, keyid: wacr.keyID},
+      {key: wacr.wa_pubkey, keyid: wacr.keyID},
       testDataToSign
     );
     if (!waresult.getValidation())
@@ -688,10 +688,10 @@ export async function testwasig(appState: AppState): Promise<boolean> {
         "testwasig; approveWA returned an error: " + waresult.isValid.desc
       );
 
-    console.log(wacr.key.key, waresult.signature);
+    console.log(wacr.wa_pubkey.pubkey, waresult.signature);
     const result = await new ConnectorEOS(appState).testwasig(
         appState.accountID, 
-        wacr.key,
+        wacr.wa_pubkey,
         Serialize.arrayToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', testDataToSign))),
         waresult.signature);
     return result.isSucceeded;

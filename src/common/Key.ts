@@ -24,13 +24,13 @@ export type EccPublicKey = string;
 export type PublicKey = any[]; // variant [string - PublicKeyType, string - ecc public key | RsaPublicKey]
 
 export class WaPublicKey {
-    key: PublicKey;
+    pubkey: PublicKey;
     user_presence: UserPresence;
     rpid: string;
 
-    constructor (key: PublicKey, user_presence: UserPresence, rpid: string)
+    constructor (pubkey: PublicKey, user_presence: UserPresence, rpid: string)
     {
-        this.key = key;
+        this.pubkey = pubkey;
         this.user_presence = user_presence;
         this.rpid = rpid;
     }
@@ -38,12 +38,12 @@ export class WaPublicKey {
 
 export class WaKey {
     credentialId: string;
-    key: WaPublicKey;
+    wa_pubkey: WaPublicKey;
 
-    constructor (credentialId: string, key: WaPublicKey)
+    constructor (credentialId: string, wa_pubkey: WaPublicKey)
     {
         this.credentialId = credentialId;
-        this.key = key;
+        this.wa_pubkey = wa_pubkey;
     }
 }
 
