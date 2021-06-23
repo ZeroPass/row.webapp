@@ -462,7 +462,7 @@ export async function propose(appState: AppState): Promise<boolean> {
       max_net_usage_words: 0,
       max_cpu_usage_ms: 0,
       delay_sec: 0,
-      context_free_actions: false,
+      context_free_actions: Array(),
       actions: [
         {
           account: "eosio.token",
@@ -476,7 +476,7 @@ export async function propose(appState: AppState): Promise<boolean> {
           data: seActions[0].data
         },
       ],
-      transaction_extensions: false,
+      transaction_extensions: Array(),
     };
 
     console.log("Getting data from the chain");
