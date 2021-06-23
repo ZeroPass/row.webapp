@@ -479,32 +479,17 @@ export async function propose(appState: AppState): Promise<boolean> {
 
     console.log("Getting data from the chain");
 
-    var keys = await new ConnectorEOS(appState).getTableRows(
-      environment.eosio.contract,
-      appState.accountID,
-      "authorities"
-    );
-
-    if (!keys.isSucceeded)
+    var keys = await new ConnectorEOS(appState).getAuthKeys(appState.accountID)
+    var keyNames = createKeyArray(keys);
+    if (keyNames.length == 0)
       throw new Error(
-        "Getting data from the chain failed with error: " + keys.desc
-      );
-
-    if (keys.desc.length == 0)
-      throw new Error(
-        "No keys on chain under current account. Please add key and then make new process"
-      );
-
-    var keyArray = createKeyArray(keys.desc[0].keys);
-    if (keyArray.length == 0)
-      throw new Error(
-        "No keys on chain under current account. Please add key and then make new process"
+        "No authKey on chain under current account. Please add key and then make new process"
       );
 
     //send data to the blockchain
     var result: Result = await new ConnectorEOS(appState).propose(
       appState.accountID,
-      keyArray,
+      keyNames,
       TEMP_FIXED_TRANSACTION
     );
 
