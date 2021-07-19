@@ -80,7 +80,7 @@ export class AppState {
     console.log("Appended message: " + message);
     this.message += message + "\n";
     this.clientRoot.forceUpdate();
-  }  
+  }
 
   }
 
@@ -168,7 +168,7 @@ export async function registerDevice(appState: AppState) {
         "registerDevice; WebAuthn process throws an error: " + wacr.isValid.desc
       );
 
-    //send data to the 
+    //send data to the
     var result: Result = await new ConnectorEOS(appState).addKey(
       appState.accountID,
       appState.keyName,
@@ -269,6 +269,7 @@ async function approveWA(
   displayName: string,
   key: AuthKey,
   packedTransaction: Uint8Array,
+  transactionSeq: number, // 64bit number, warning `number` only has 53 bits of precision
   userId: Uint8Array = new Uint8Array(16)
 ): Promise<WebAuthnApproveResult> {
   try {
@@ -293,6 +294,7 @@ async function approveWA(
     const signBuf = new Serialize.SerialBuffer();
     //signBuf.pushArray(Serialize.hexToUint8Array(chainId));
     signBuf.pushArray(packedTransaction);
+    signBuf.pushNumberAsUint64(transactionSeq)
     // if (serializedContextFreeData) {
     //     signBuf.pushArray(new Uint8Array(await crypto.subtle.digest('SHA-256', serializedContextFreeData.buffer)));
     // } else {
@@ -424,9 +426,6 @@ export async function propose(appState: AppState): Promise<boolean> {
 
     const username = appState.accountID; //'Mo.Lestor'
 
-    //get timestamp; minutes
-    var timestamp = new Date();
-    timestamp.setMinutes(timestamp.getMinutes() + 5);
 
     var TEMP_RAW_TRANSACTION  = [
       {
@@ -449,6 +448,9 @@ export async function propose(appState: AppState): Promise<boolean> {
     let seActions = await new ConnectorEOS(appState).serializeTransaction( TEMP_RAW_TRANSACTION );
     console.log(seActions[0].data);
 
+    //get timestamp; minutes
+    var timestamp = new Date();
+    timestamp.setMinutes(timestamp.getMinutes() + 5);
     var TEMP_FIXED_TRANSACTION = {
       expiration: moment(timestamp).format("YYYY-MM-DDTHH:mm:ss"),
       ref_block_num: 0,
@@ -527,8 +529,9 @@ export async function approve(appState: AppState): Promise<boolean> {
     }
 
     console.log("Getting data from the chain");
-    const proposal = await new ConnectorEOS(appState).getProposal(appState.accountID, appState.accountID);
-    const authKey  = await new ConnectorEOS(appState).getAuthKey(appState.accountID, appState.keyName);
+    const com = new ConnectorEOS(appState);
+    const proposal = await com.getProposal(appState.accountID, appState.accountID);
+    const authKey  = await com.getAuthKey(appState.accountID, appState.keyName);
 
     //get/define the data
     const rpId = window.location.hostname;
@@ -545,7 +548,8 @@ export async function approve(appState: AppState): Promise<boolean> {
       username,
       displayName,
       authKey,
-      Serialize.hexToUint8Array(proposal.packed_transaction)
+      Serialize.hexToUint8Array(proposal.packed_transaction),
+      proposal.trx_seq
     );
 
     if (!waresult.getValidation())
@@ -665,7 +669,8 @@ export async function testwasig(appState: AppState): Promise<boolean> {
       username,
       displayName,
       new AuthKey('testkey', wacr.wa_pubkey, 0, 1, wacr.keyID),
-      testDataToSign
+      testDataToSign,
+      /*txSequence:*/0
     );
     if (!waresult.getValidation())
       throw new Error(
@@ -674,7 +679,7 @@ export async function testwasig(appState: AppState): Promise<boolean> {
 
     console.log(wacr.wa_pubkey.pubkey.asVariant(), waresult.signature);
     const result = await new ConnectorEOS(appState).testwasig(
-        appState.accountID, 
+        appState.accountID,
         wacr.wa_pubkey,
         Serialize.arrayToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', testDataToSign))),
         waresult.signature);

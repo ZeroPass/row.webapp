@@ -3,7 +3,6 @@ import { Result, Connector } from "./connector";
 import { environment } from "./../other/constant";
 import {  AuthKey, WaPublicKey, WaSignature } from "../../common/Key";
 
-
 export default class ConnectorEos {
     appState: AppState;
     connector: Connector;
@@ -93,7 +92,7 @@ export default class ConnectorEos {
         if (!trx) throw new Error("blockchainPropose; 'trx' is not defined");
         //if (!appState.proposalName)
         //throw new Error("blockchainPropose; 'proposalName' is not defined");
-      
+
         const result = await this.connector.propose(
           accountID,
           accountID,

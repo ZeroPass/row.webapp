@@ -107,18 +107,27 @@ export class Connector{
         }
     }
 
+    async getAccountAuthority(account: string) : Promise<any> {
+        var auths = await this.getTableRows(environment.eosio.contract, account, "authorities");
+        if (!auths.isSucceeded) {
+           throw new Error("Failed to get the list of authKeys from chain! error: " + auths.desc);
+        }
+        if (auths.desc.length == 0) {
+          throw new Error(
+            "No authority entry on chain for the account. Please add key and then make new process"
+          );
+        }
+        return auths.desc[0];
+    }
+
     async getAuthKeys(account: string) : Promise<Array<AuthKey>> {
         try{
-           var auths = await this.getTableRows(environment.eosio.contract, account,"authorities");
-           if (!auths.isSucceeded) {
-               throw new Error("Failed to get the list of authKeys from chain! error: " + auths.desc);
+           var auths = await this.getAccountAuthority(account);
+           var keys = auths.keys
+           for (var k of keys) {
+                k.wa_pubkey = deserializeWaPublicKey(k.wa_pubkey);
            }
-           if (auths.desc.length == 0) {
-              throw new Error(
-                "No authority entry on chain for the account. Please add key and then make new process"
-              );
-           }
-           return auths.desc[0].keys;
+           return keys;
        }
        catch(e){
            throw new Error("Exception thrown in 'connector:getAuthKeys':" + e);
@@ -129,7 +138,6 @@ export class Connector{
         var keys = await this.getAuthKeys(account);
         for (const k of keys) {
             if (k.key_name == keyName) {
-                k.wa_pubkey = deserializeWaPublicKey(k.wa_pubkey);
                 return k;
             }
         }
@@ -174,8 +182,20 @@ export class Connector{
 
     async propose(user: string, proposalName: string, requested_approvals: string[], trx: {}): Promise<Result> {
         try {
+
+            // Get tapos values and expiration
+            // Note generateTapos is private member of Api
+            const tx_header = await (<any>this.api).generateTapos(undefined, {}, undefined, /*useLastIrreversible:*/true, /*expireSeconds:*/180);
+
+            // Update proposed trx tapos values
+            trx = { ...trx, ref_block_num: tx_header.ref_block_num, ref_block_prefix: tx_header.ref_block_prefix }
+
+            // Send proposae transaction
             const result = await this.api.transact(
                 {
+                    expiration: tx_header.expiration,
+                    ref_block_num: tx_header.ref_block_num,
+                    ref_block_prefix: tx_header.ref_block_prefix,
                     actions: [{
                         account: environment.eosio.contract,
                         name: 'propose',
@@ -288,7 +308,7 @@ export class Connector{
               throw new Error(
                 'proposal_name is not defined.'
               );
-        
+
             const result = await this.api.transact(
             {
                 actions: [{
@@ -331,7 +351,7 @@ export class Connector{
                   throw new Error('signed_hash is not defined.');
                 if (!sig)
                   throw new Error('sig is not defined.');
-            
+
                 const result = await this.api.transact(
                     {
                         actions: [{
