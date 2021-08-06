@@ -294,7 +294,7 @@ async function approveWA(
     const signBuf = new Serialize.SerialBuffer();
     //signBuf.pushArray(Serialize.hexToUint8Array(chainId));
     signBuf.pushArray(packedTransaction);
-    signBuf.pushNumberAsUint64(transactionSeq)
+    signBuf.pushUint32(transactionSeq)
     // if (serializedContextFreeData) {
     //     signBuf.pushArray(new Uint8Array(await crypto.subtle.digest('SHA-256', serializedContextFreeData.buffer)));
     // } else {
