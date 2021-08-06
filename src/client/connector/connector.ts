@@ -203,7 +203,7 @@ export class Connector{
                             account: user,
                             proposal_name: proposalName,
                             requested_approvals: requested_approvals,
-                            tx: trx,
+                            trx: trx,
                         },
                         authorization: [{
                             actor: user,
