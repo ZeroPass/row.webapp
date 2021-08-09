@@ -159,7 +159,7 @@ export class Connector{
                         },
                         authorization: [{
                             actor: user,
-                            permission: 'active', //'wamsig'
+                            permission: 'rowmsig',
                         }],
                     }],
                 }, {
@@ -207,7 +207,7 @@ export class Connector{
                         },
                         authorization: [{
                             actor: user,
-                            permission: 'active', //'wamsig'
+                            permission: 'rowmsig',
                         }],
                     }],
                 }, {
@@ -243,7 +243,7 @@ export class Connector{
                         },
                         authorization: [{
                             actor: user,
-                            permission: 'active', //'wamsig'
+                            permission: 'rowmsig',
                         }],
                     }],
                 }, {
