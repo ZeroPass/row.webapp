@@ -49,6 +49,11 @@ module.exports = {
 
     },
     resolve: {
+        fallback: {
+            fs: false,
+            net: false,
+            "assert": require.resolve("assert/")
+        },
         extensions: ['.tsx', '.ts', '.js'],
         alias: {
             util3: require.resolve("util/"),
@@ -71,15 +76,17 @@ module.exports = {
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NoEmitOnErrorsPlugin(),
+        new webpack.DefinePlugin({
+            'process.env.NODE_DEBUG': JSON.stringify('development')
+        }),
+        new webpack.ProvidePlugin({
+            Buffer: ['buffer', 'Buffer'],
+        })
     ],
     output: {
         libraryExport: 'default', //Nejc's line
         filename: '[name].bundle.js',
         path: path.resolve(__dirname, 'dist'),
         publicPath: '/'
-    },
-    node: {
-        fs: "empty",
-        net: 'empty'
     }
 };
