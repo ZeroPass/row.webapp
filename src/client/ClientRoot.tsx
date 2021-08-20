@@ -1,5 +1,6 @@
 import {Serialize} from "eosjs";
 import { ec } from 'elliptic';
+import sha256 from "fast-sha256";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import * as IoClient from "socket.io-client";
@@ -264,9 +265,6 @@ async function registerWA(
 async function approveWA(
   appState: AppState,
   rpId: string,
-  rpName: string,
-  username: string,
-  displayName: string,
   key: AuthKey,
   packedTransaction: Uint8Array,
   transactionSeq: number, // 64bit number, warning `number` only has 53 bits of precision
@@ -274,43 +272,32 @@ async function approveWA(
 ): Promise<WebAuthnApproveResult> {
   try {
     if (!rpId) throw new Error("ApproveWA; rpId is undefined");
-
-    if (!rpName) throw new Error("ApproveWA; rpName is undefined");
-
-    if (!username) throw new Error("ApproveWA; username is undefined");
-
-    if (!displayName) throw new Error("ApproveWA; displayName is undefined");
-
     if (!key) throw new Error("ApproveWA; key is undefined");
-
     if (!packedTransaction)
       throw new Error("ApproveWA; packedTransaction is undefined");
-
-    const textEncoder = new TextEncoder();
-    const textDecoder = new TextDecoder();
 
     appState.appendMessage("Getting wa...");
 
     const signBuf = new Serialize.SerialBuffer();
-    //signBuf.pushArray(Serialize.hexToUint8Array(chainId));
     signBuf.pushArray(packedTransaction);
     signBuf.pushUint32(transactionSeq)
-    // if (serializedContextFreeData) {
-    //     signBuf.pushArray(new Uint8Array(await crypto.subtle.digest('SHA-256', serializedContextFreeData.buffer)));
-    // } else {
-    //     signBuf.pushArray(new Uint8Array(32));
-    // }
     const id        = Serialize.hexToUint8Array(key.keyid);
-    const digest    = new Uint8Array(await crypto.subtle.digest('SHA-256', signBuf.asUint8Array().slice().buffer));
+    const sigHash = sha256(signBuf.asUint8Array().slice())
+    const pubkeyOptions = {
+      rpId: rpId,
+      timeout: 60000,
+      allowCredentials: [{
+          id,
+          type: 'public-key',
+      }],
+      challenge: sigHash,
+      extensions: {
+          txAuthSimple: ""
+      }
+    };
+
     const assertion = await (navigator as any).credentials.get({
-        publicKey: {
-            timeout: 60000,
-            allowCredentials: [{
-                id,
-                type: 'public-key',
-            }],
-            challenge: digest.buffer,
-        },
+      publicKey: pubkeyOptions
     });
 
     var signature: string;
@@ -528,25 +515,15 @@ export async function approve(appState: AppState): Promise<boolean> {
       );
     }
 
-    console.log("Getting data from the chain");
+    //console.log("Getting data from the chain");
     const com = new ConnectorEOS(appState);
     const proposal = await com.getProposal(appState.accountID, appState.accountID);
     const authKey  = await com.getAuthKey(appState.accountID, appState.keyName);
 
-    //get/define the data
     const rpId = window.location.hostname;
-    const rpName = rpId;
-    const username = appState.accountID; //'Mo.Lestor'
-    const displayName = username + "@gmail.com";
-    //const credentialID = lastKey.keyid;
-
-    console.log("Start webauthn process");
     var waresult: WebAuthnApproveResult = await approveWA(
       appState,
       rpId,
-      rpName,
-      username,
-      displayName,
       authKey,
       Serialize.hexToUint8Array(proposal.packed_transaction),
       proposal.trx_seq
@@ -606,7 +583,7 @@ export async function testwasig(appState: AppState): Promise<boolean> {
         'AccountID is not defined. Please fill the field "AccountID".'
       );
 
-      const rpId = window.location.hostname;
+    const rpId = window.location.hostname;
     const rpName = rpId;
     const username = appState.accountID; //'Mo.Lestor'
     const displayName = username + "@gmail.com";
@@ -665,9 +642,6 @@ export async function testwasig(appState: AppState): Promise<boolean> {
     var waresult: WebAuthnApproveResult = await approveWA(
       appState,
       rpId,
-      rpName,
-      username,
-      displayName,
       new AuthKey('testkey', wacr.wa_pubkey, 0, 1, wacr.keyID),
       testDataToSign,
       /*txSequence:*/0

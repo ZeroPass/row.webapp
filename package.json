@@ -58,6 +58,7 @@
       "elliptic": "^6.5.4",
       "eosjs": "file:external/eosjs",
       "eosjs-ecc": "^4.0.4",
+      "fast-sha256": "^1.3.0",
       "fast-text-encoding": "^1.0.3",
       "file-loader": "^6.2.0",
       "install": "^0.13.0",
