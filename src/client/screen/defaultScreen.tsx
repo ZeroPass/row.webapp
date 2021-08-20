@@ -5,10 +5,6 @@ var slika = require("./images/wallet.svg");
 
 
 export default class DefaultScreen extends React.Component<{ appState: AppState }> {
-    pointer: number; 
-    componentDidMount() {
-      this.pointer = 3;
-    }
     render() {
       const { appState } = this.props;
       return (
@@ -23,25 +19,28 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                     <div className="form-block w-form">
                       <form id="email-form-2" name="email-form-2" data-name="Email Form 2">
                 <label htmlFor="AccountName" className="field-label">Account name</label>
-                <input type="text" 
-                        className="field w-input" 
-                        maxLength={256} 
-                        name="AccountName" 
-                        data-name="AccountName" 
+                <input type="text"
+                        className="field w-input"
+                        maxLength={256}
+                        name="AccountName"
+                        data-name="AccountName"
                         placeholder="Write your account name"
                         id="AccountName"
-                        value= {appState.accountID}
+                        autoCapitalize='none'
+                        autoCorrect='off'
                         onChange={(e) => appState.changeAccountID(e.target.value)}
                         >
                       </input>
                 <label htmlFor="DeviceName" className="field-label">Device name </label>
-                <input type="text" 
-                        className="field w-input" 
-                        maxLength={256} 
-                        name="DeviceName" 
-                        data-name="DeviceName" 
-                        placeholder="Write your device name"  
+                <input type="text"
+                        className="field w-input"
+                        maxLength={256}
+                        name="DeviceName"
+                        data-name="DeviceName"
+                        placeholder="Write your device name"
                         id="DeviceName"
+                        autoCapitalize='none'
+                        autoCorrect='off'
                         onChange={(e) => appState.setKeyName(e.target.value)}
                         >
                       </input>
@@ -51,8 +50,8 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                     <div className="w-row">
                       <div className="column-3 w-col w-col-6" onClick={async() => {
                           var result = await propose(appState);
-				if(result)
-				await approve(appState);
+                          if(result)
+                            await approve(appState);
                           //TODO: add also first approve
                           }}>
                         <a href="#" className="buttonapprove w-button">Approve 1/2</a>
@@ -62,8 +61,6 @@ export default class DefaultScreen extends React.Component<{ appState: AppState 
                           var result = await approve(appState);
                           if (result)
                               result = await exec(appState)
-                              //if (result)
-                              //  await cancel(appState);
                           }}>
                         <a href="#" className="buttonapprove w-button">Approve 2/2</a>
                         <div className="text-block">approve2 + execute</div>
