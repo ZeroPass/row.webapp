@@ -159,7 +159,7 @@ export class Connector{
                         },
                         authorization: [{
                             actor: user,
-                            permission: 'rowmsig',
+                            permission: 'active',
                         }],
                     }],
                 }, {
